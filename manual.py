@@ -17,11 +17,8 @@ import numpy as np
 import argparse
 import datetime
 import math
-import random
 import weakref
 import matplotlib.pyplot as plt
-from PIL import Image
-from matplotlib import cm
 
 import pygame
 from pygame.locals import K_F1
@@ -428,6 +425,9 @@ class CameraManager(object):
 # ------------------------------------------------------------------------------
 
 def game_loop(args):
+    if args.no_screen:
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+
     pygame.init()
     pygame.font.init()
     world = None
@@ -455,7 +455,7 @@ def game_loop(args):
         # initialize pygame
         display = pygame.display.set_mode((args.width, args.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
         display.fill((0, 0, 0))
-        # pygame.display.flip()
+        pygame.display.flip()
 
         hud = HUD(args.width, args.height)
         world = World(sim_world, hud, args)
@@ -482,8 +482,8 @@ def game_loop(args):
             clock.tick_busy_loop(args.world_fps)
             controller.parse_events(world, clock)
             world.tick(clock)
-            # world.render(display)
-            # pygame.display.flip()
+            world.render(display)
+            pygame.display.flip()
             world.record()
 
         if args.record:
@@ -520,6 +520,7 @@ if __name__ == '__main__':
     parser.add_argument('--record-fps', default=10)
     parser.add_argument('--save-png', type=bool, default=True,
                         help='True: observations are stored as png, False: npy array')
+    parser.add_argument('--no-screen', type=bool, default=True)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)

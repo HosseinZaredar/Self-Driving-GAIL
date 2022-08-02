@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--max_epochs', type=int, default=200)
     parser.add_argument('--minibatch_size', type=int, default=20)
     parser.add_argument('--use-cuda', type=bool, nargs='?', default=False)
+    parser.add_argument('--wandb', type=bool, nargs='?', default=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     return parser.parse_args()
 
@@ -27,6 +28,16 @@ if __name__ == '__main__':
 
     args = parse_args()
     run_name = f'train-bc_{args.seed}_{int(time.time())}'
+
+    if args.wandb is True:
+        import wandb
+        wandb.init(
+            project='Carla',
+            sync_tensorboard=True,
+            config=vars(args),
+            name=run_name,
+            save_code=True,
+        )
 
     # tensorboard setup
     writer = SummaryWriter(os.path.join('runs', run_name))
@@ -78,7 +89,7 @@ if __name__ == '__main__':
 
     # initialize ppo agent
     agent = PPOAgent('bc_learner', 3, args.learning_rate, env, device, 0, writer).to(device)
-    agent.load_models()
+    # agent.load_models()
 
     for epoch in range(1, args.max_epochs + 1):
 
