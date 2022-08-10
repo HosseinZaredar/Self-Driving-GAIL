@@ -47,16 +47,14 @@ if __name__ == '__main__':
     agent.load_models()
 
     done = False
-    obs, command = env.reset()
+    obs, command, speed = env.reset()
     while not done:
         obs = torch.tensor(obs.copy(), dtype=torch.float).to(device)
         command = torch.tensor(command, dtype=torch.float).to(device)
-        v = env.vehicle.get_velocity()
-        speed = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         speed = torch.tensor([speed], dtype=torch.float).to(device)
         action, _, _, _ = agent.get_action_and_value(obs.unsqueeze(0), command.unsqueeze(0), speed.unsqueeze(0),
                                                      deterministic=args.deterministic)
-        next_obs, command, _, done, info = env.step(action.view(-1).cpu().numpy())
+        next_obs, command, speed, _, done, info = env.step(action.view(-1).cpu().numpy())
         obs = next_obs
 
         if done:

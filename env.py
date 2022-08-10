@@ -93,7 +93,10 @@ class CarlaEnv:
         # command: move forward
         command = np.array([0.0, 1.0, 0.0])
 
-        return obs, command
+        # speed
+        speed = 0
+
+        return obs, command, speed
 
     def step(self, action):
         throttle = float(np.clip(action[0], 0, 1))
@@ -122,7 +125,14 @@ class CarlaEnv:
             done = False
             info = {}
 
-        return obs, command, 0, done, info
+        # reward
+        reward = 0
+
+        # speed
+        v = self.vehicle.get_velocity()
+        speed = math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)
+
+        return obs, command, speed, reward, done, info
 
     def close(self):
         self.camera.stop()

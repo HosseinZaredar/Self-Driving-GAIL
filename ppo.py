@@ -36,9 +36,9 @@ class Critic(nn.Module):
         return self.critic(x)
 
 
-def sample_expert(expert_states, expert_commands, expert_actions, num):
+def sample_expert(expert_states, expert_commands, expert_speeds, expert_actions, num):
     indices = np.random.choice(np.arange(expert_states.shape[0]), num, replace=False)
-    return expert_states[indices], expert_commands[indices], expert_actions[indices]
+    return expert_states[indices], expert_commands[indices], expert_speeds, expert_actions[indices]
 
 
 # PPO agent class
@@ -61,14 +61,16 @@ class PPOAgent(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate, eps=1e-5)
 
         # next observation and done in the environment
-        obs, command = env.reset()
+        obs, command, speed = env.reset()
         self.next_obs = torch.Tensor(obs.copy()).to(device)
         self.next_command = torch.Tensor(command.copy()).to(device)
+        self.next_speed = torch.Tensor([speed]).to(device)
         self.next_done = torch.zeros(()).to(device)
 
         # single-episode memory
         self.obs = torch.zeros((num_steps,) + env.observation_space).to(device)
         self.commands = torch.zeros((num_steps, 3)).to(device)
+        self.speeds = torch.zeros((num_steps, 1)).to(device)
         self.actions = torch.zeros((num_steps,) + env.action_space).to(device)
         self.logprobs = torch.zeros((num_steps,)).to(device)
         self.rewards = torch.zeros((num_steps,)).to(device)
@@ -110,28 +112,31 @@ class PPOAgent(nn.Module):
             global_step += 1
             self.obs[step] = self.next_obs
             self.commands[step] = self.next_command
+            self.speeds[step] = self.next_speed
             self.dones[step] = self.next_done
 
             # action logic
             with torch.no_grad():
                 action, logproba, _, value = self.get_action_and_value(
-                    self.obs[step].unsqueeze(0), self.commands[step].unsqueeze(0))
+                    self.obs[step].unsqueeze(0), self.commands[step].unsqueeze(0), self.speeds[step].unsqueeze(0))
 
             self.values[step] = value.view(-1)
             self.actions[step] = action.view(-1)
             self.logprobs[step] = logproba.view(-1)
 
             # execute the game and log data
-            next_obs, next_command, reward, done, info = self.env.step(action.view(-1).cpu().numpy())
+            next_obs, next_command, next_speed, reward, done, info = self.env.step(action.view(-1).cpu().numpy())
             self.rewards[step] = torch.tensor(reward).to(self.device)
             self.next_obs = torch.Tensor(next_obs.copy()).to(self.device)
             self.next_command = torch.Tensor(next_command).to(self.device)
+            self.next_speed = torch.Tensor([next_speed]).to(self.device)
             self.next_done = torch.tensor(int(done)).to(self.device)
 
             if self.next_done.item() == 1:
-                obs, command = self.env.reset()
+                obs, command, speed = self.env.reset()
                 self.next_obs = torch.Tensor(obs.copy()).to(self.device)
                 self.next_command = torch.Tensor(command).to(self.device)
+                self.next_speed = torch.Tensor([speed]).to(self.device)
 
             if 'distance' in info.keys():
                 self.writer.add_scalar('charts/distance', info['distance'], global_step)
@@ -162,7 +167,8 @@ class PPOAgent(nn.Module):
     # calculate generalized advantage estimation (GAE)
     def calc_advantage(self, gamma, gae_lambda):
         with torch.no_grad():
-            next_value = self.get_value(self.next_obs.unsqueeze(0), self.next_command.unsqueeze(0)).reshape(1, -1)
+            next_value = self.get_value(
+                self.next_obs.unsqueeze(0), self.next_command.unsqueeze(0), self.next_speed.unsqueeze(0)).reshape(1, -1)
             lastgaelam = 0
             for t in reversed(range(self.num_steps)):
                 if t == self.num_steps - 1:
@@ -178,7 +184,8 @@ class PPOAgent(nn.Module):
 
     # learn from the experiences in the memory
     def learn(self, batch_size, minibatch_size, update_epochs, norm_adv, clip_coef, clip_vloss, ent_coef, vf_coef,
-              max_grad_norm, interpolate_bc=False, bc_alpha=0.5, bc_states=None, bc_commands=None, bc_actions=None):
+              max_grad_norm, interpolate_bc=False, bc_alpha=0.5, bc_states=None, bc_commands=None,
+              bc_speeds=None, bc_actions=None):
 
         b_inds = np.arange(batch_size)
         for epoch in range(update_epochs):
@@ -186,14 +193,15 @@ class PPOAgent(nn.Module):
 
             if interpolate_bc:
                 # sample expert data
-                bc_states_sample, bc_commands_sample, bc_actions_sample = sample_expert(bc_states, bc_commands, bc_actions, self.num_steps)
+                bc_states_sample, bc_commands_sample, bc_speeds_sample, bc_actions_sample = \
+                    sample_expert(bc_states, bc_commands, bc_speeds, bc_actions, self.num_steps)
 
             for start in range(0, batch_size, minibatch_size):
                 end = start + minibatch_size
                 mb_inds = b_inds[start:end]
 
                 _, newlogprob, entropy, newvalue = self.get_action_and_value(
-                    self.obs[mb_inds], self.commands[mb_inds], self.actions[mb_inds])
+                    self.obs[mb_inds], self.commands[mb_inds], self.speeds[mb_inds], self.actions[mb_inds])
                 logratio = newlogprob - self.logprobs[mb_inds]
                 ratio = logratio.exp()
 
@@ -211,9 +219,10 @@ class PPOAgent(nn.Module):
                 if interpolate_bc:
                     bc_states_batch = torch.from_numpy(bc_states_sample[mb_inds]).float().to(self.device)
                     bc_commands_batch = torch.from_numpy(bc_commands_sample[mb_inds]).float().to(self.device)
+                    bc_speeds_batch = torch.from_numpy(bc_speeds_sample[mb_inds]).float().to(self.device)
                     bc_actions_batch = torch.from_numpy(bc_actions_sample[mb_inds]).float().to(self.device)
                     _, bc_log_probs, _, _ = self.get_action_and_value(
-                        bc_states_batch, bc_commands_batch, bc_actions_batch)
+                        bc_states_batch, bc_commands_batch, bc_speeds_batch.unsqueeze(dim=1), bc_actions_batch)
                     bc_loss = -bc_log_probs.mean()
                     full_pg_loss = bc_alpha * bc_loss + (1 - bc_alpha) * pg_loss
                 else:
