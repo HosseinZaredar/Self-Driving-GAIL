@@ -18,7 +18,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 class Actor(nn.Module):
     def __init__(self, env, num_actions):
         super(Actor, self).__init__()
-        self.actor_mean = layer_init(nn.Linear(512+3, num_actions), std=0.01)
+        self.actor_mean = layer_init(nn.Linear(512+3+1, num_actions), std=0.01)
         self.actor_logstd = nn.Parameter(torch.zeros(1, num_actions))
 
     def forward(self, x):
@@ -30,7 +30,7 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     def __init__(self):
         super(Critic, self).__init__()
-        self.critic = layer_init(nn.Linear(512+3, 1), std=1)
+        self.critic = layer_init(nn.Linear(512+3+1, 1), std=1)
 
     def forward(self, x):
         return self.critic(x)
@@ -82,8 +82,8 @@ class PPOAgent(nn.Module):
             os.makedirs(checkpoint_dir)
         self.checkpoint_file = os.path.join('checkpoints', agent_name)
 
-    def get_action_and_value(self, x, command, action=None, deterministic=False):
-        features = torch.concat((self.cnn(x), command), dim=1)
+    def get_action_and_value(self, x, command, speed, action=None, deterministic=False):
+        features = torch.concat((self.cnn(x), command, speed), dim=1)
         action_mean, action_logstd = self.actor(features)
         value = self.critic(features)
 
@@ -96,8 +96,8 @@ class PPOAgent(nn.Module):
                 action = probs.sample()
         return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), value
 
-    def get_value(self, x, command):
-        features = torch.concat((self.cnn(x), command), dim=1)
+    def get_value(self, x, command, speed):
+        features = torch.concat((self.cnn(x), command, speed), dim=1)
         return self.critic(features)
 
     # rollout for num_steps in the environment

@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('--max_epochs', type=int, default=200)
     parser.add_argument('--minibatch_size', type=int, default=20)
     parser.add_argument('--use-cuda', type=bool, nargs='?', default=False)
-    parser.add_argument('--wandb', type=bool, nargs='?', default=True)
+    parser.add_argument('--wandb', type=bool, nargs='?', default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     return parser.parse_args()
 
@@ -61,14 +61,17 @@ if __name__ == '__main__':
     # load expert trajectories
     expert_states = []
     expert_commands = []
+    expert_speeds = []
     expert_actions = []
     for dir in os.listdir('expert_data'):
         expert_states.append(np.load(os.path.join('expert_data', dir, 'expert_states.npy')))
         expert_commands.append(np.load(os.path.join('expert_data', dir, 'expert_commands.npy')))
+        expert_speeds.append(np.load(os.path.join('expert_data', dir, 'expert_speeds.npy')))
         expert_actions.append(np.load(os.path.join('expert_data', dir, 'expert_actions.npy')))
 
     expert_states = np.concatenate(expert_states)
     expert_commands = np.concatenate(expert_commands)
+    expert_speeds = np.concatenate(expert_speeds)
     expert_actions = np.concatenate(expert_actions)
 
     # shuffle expert data
@@ -76,15 +79,19 @@ if __name__ == '__main__':
     indices = np.arange(0, num_states)
     np.random.shuffle(indices)
     expert_states = expert_states[indices]
+    expert_commands = expert_commands[indices]
+    expert_speeds = expert_speeds[indices]
     expert_actions = expert_actions[indices]
 
     # train-validation split
     ratio = 0.8
     expert_states_train = expert_states[: int(ratio * num_states)]
     expert_commands_train = expert_commands[: int(ratio * num_states)]
+    expert_speeds_train = expert_speeds[: int(ratio * num_states)]
     expert_actions_train = expert_actions[: int(ratio * num_states)]
     expert_states_val = expert_states[int(ratio * num_states):]
     expert_commands_val = expert_commands[int(ratio * num_states):]
+    expert_speeds_val = expert_speeds[int(ratio * num_states):]
     expert_actions_val = expert_actions[int(ratio * num_states):]
 
     # initialize ppo agent
@@ -105,11 +112,14 @@ if __name__ == '__main__':
                 expert_states_train[b: b + args.minibatch_size]).float().to(device)
             expert_commands_batch = torch.from_numpy(
                 expert_commands_train[b: b + args.minibatch_size]).float().to(device)
+            expert_speeds_batch = torch.from_numpy(
+                expert_speeds_train[b: b + args.minibatch_size]).float().to(device)
             expert_actions_batch = torch.from_numpy(
                 expert_actions_train[b: b + args.minibatch_size]).float().to(device)
 
             _, bc_log_probs, _, _ = agent.get_action_and_value(
-                expert_states_batch, expert_commands_batch, expert_actions_batch)
+                expert_states_batch, expert_commands_batch, expert_speeds_batch.unsqueeze(dim=1),
+                expert_actions_batch)
 
             bc_loss = -bc_log_probs.mean()
             mean_loss_train += bc_loss.item()
@@ -122,19 +132,23 @@ if __name__ == '__main__':
         mean_loss_val = 0
 
         # validation
-        for b in batch_starts_val:
-            expert_states_batch = torch.from_numpy(
-                expert_states_val[b: b + args.minibatch_size]).float().to(device)
-            expert_commands_batch = torch.from_numpy(
-                expert_commands_val[b: b + args.minibatch_size]).float().to(device)
-            expert_actions_batch = torch.from_numpy(
-                expert_actions_val[b: b + args.minibatch_size]).float().to(device)
+        with torch.no_grad():
+            for b in batch_starts_val:
+                expert_states_batch = torch.from_numpy(
+                    expert_states_val[b: b + args.minibatch_size]).float().to(device)
+                expert_commands_batch = torch.from_numpy(
+                    expert_commands_val[b: b + args.minibatch_size]).float().to(device)
+                expert_speeds_batch = torch.from_numpy(
+                    expert_speeds_val[b: b + args.minibatch_size]).float().to(device)
+                expert_actions_batch = torch.from_numpy(
+                    expert_actions_val[b: b + args.minibatch_size]).float().to(device)
 
-            _, bc_log_probs, _, _ = agent.get_action_and_value(
-                expert_states_batch, expert_commands_batch, expert_actions_batch)
+                _, bc_log_probs, _, _ = agent.get_action_and_value(
+                    expert_states_batch, expert_commands_batch, expert_speeds_batch.unsqueeze(dim=1),
+                    expert_actions_batch)
 
-            bc_loss = -bc_log_probs.mean()
-            mean_loss_val += bc_loss.item()
+                bc_loss = -bc_log_probs.mean()
+                mean_loss_val += bc_loss.item()
 
         # record rewards for plotting purposes
         writer.add_scalar("charts/learning_rate", agent.optimizer.param_groups[0]["lr"], epoch)

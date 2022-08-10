@@ -1,3 +1,5 @@
+import math
+
 from env import CarlaEnv
 from ppo import PPOAgent
 
@@ -5,6 +7,9 @@ import numpy as np
 import random
 import argparse
 from distutils.util import strtobool
+from torch.utils.tensorboard import SummaryWriter
+import os
+import time
 import torch
 
 
@@ -13,7 +18,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=2)
     parser.add_argument('--num_episodes', type=int, default=1)
-    parser.add_argument('--agent-name', type=str, default='bc_gail_learner')
+    parser.add_argument('--agent-name', type=str, default='bc_learner')
     parser.add_argument('--record', type=lambda x: strtobool(x), default=True)
     parser.add_argument('--use-cuda', type=bool, default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
@@ -46,9 +51,15 @@ if __name__ == '__main__':
     while not done:
         obs = torch.tensor(obs.copy(), dtype=torch.float).to(device)
         command = torch.tensor(command, dtype=torch.float).to(device)
-        action, _, _, _ = agent.get_action_and_value(obs.unsqueeze(0), command.unsqueeze(0),
+        v = env.vehicle.get_velocity()
+        speed = math.sqrt(v.x**2 + v.y**2 + v.z**2)
+        speed = torch.tensor([speed], dtype=torch.float).to(device)
+        action, _, _, _ = agent.get_action_and_value(obs.unsqueeze(0), command.unsqueeze(0), speed.unsqueeze(0),
                                                      deterministic=args.deterministic)
-        next_obs, command, _, done, _ = env.step(action.view(-1).cpu().numpy())
+        next_obs, command, _, done, info = env.step(action.view(-1).cpu().numpy())
         obs = next_obs
+
+        if done:
+            print(info)
 
     env.close()

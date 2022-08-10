@@ -70,6 +70,7 @@ class World(object):
         self.recording = False
         self.observations = []
         self.commands = []
+        self.speeds = []
         self.actions = []
 
     def toggle_recording(self):
@@ -80,9 +81,10 @@ class World(object):
 
             np_observations = np.empty((len(self.observations), *self.observations[0].transpose((2, 0, 1)).shape))
             np_commands = np.empty((len(self.commands), 3))
+            np_speeds = np.empty(len(self.commands))
             np_actions = np.empty((len(self.actions), 3))
 
-            for i, (obs, cmd, act) in enumerate(zip(self.observations, self.commands, self.actions)):
+            for i, (obs, cmd, spd, act) in enumerate(zip(self.observations, self.commands, self.speeds, self.actions)):
                 # obs = Image.fromarray(obs)
                 # obs = pil_obs.resize((self.rec_width, self.rec_height))
 
@@ -91,14 +93,17 @@ class World(object):
 
                 np_observations[i] = np.transpose(obs, (2, 0, 1))
                 np_commands[i] = cmd
+                np_speeds[i] = spd
                 np_actions[i] = act
 
             np.save(os.path.join(directory, 'expert_states.npy'), np_observations)
             np.save(os.path.join(directory, 'expert_commands.npy'), np_commands)
+            np.save(os.path.join(directory, 'expert_speeds.npy'), np_speeds)
             np.save(os.path.join(directory, 'expert_actions.npy'), np_actions)
 
             self.observations = []
             self.commands = []
+            self.speeds = []
             self.actions = []
             self.record_counter = 0
 
@@ -111,6 +116,9 @@ class World(object):
                 self.commands.append(np.copy(self.command))
                 c = self.player.get_control()
                 self.actions.append(np.array([c.throttle, c.steer, c.brake]))
+
+                v = self.player.get_velocity()
+                self.speeds.append(math.sqrt(v.x**2 + v.y**2 + v.z**2))
                 self.record_counter = 0
             else:
                 self.record_counter += 1
@@ -526,7 +534,7 @@ if __name__ == '__main__':
     parser.add_argument('--autopilot', type=bool, default=True)
     parser.add_argument('--episode-length', type=int, default=15,
                         help='episode length in seconds')
-    parser.add_argument('--episode-number', type=int, default=5)
+    parser.add_argument('--episode-number', type=int, default=0)
     parser.add_argument('--spawn', metavar='X,Y,Z', default='136.0,109.4,0.5',
                         help='window resolution')
 
