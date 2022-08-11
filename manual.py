@@ -11,11 +11,13 @@
 
 import carla
 from carla import ColorConverter as cc
+from agents.navigation.basic_agent import BasicAgent
 
 import os
 import numpy as np
 import argparse
 import datetime
+import random
 import math
 import weakref
 import matplotlib.pyplot as plt
@@ -56,17 +58,29 @@ class World(object):
         self.spawn_x = args.spawn_x
         self.spawn_y = args.spawn_y
         self.spawn_z = args.spawn_z
+        self.yaw = args.yaw
+
+        # vehicle destination
+        self.dest_x = args.dest_x
+        self.dest_y = args.dest_y
+        self.dest_z = args.dest_z
+
+        # autopilot agent
+        self.agent = None
 
         self.restart()
+
+        # setup autopilot agent
+        self.agent = BasicAgent(self.player)
+        self.agent.ignore_traffic_lights(active=True)
+        dest = carla.Location(x=self.dest_x, y=self.dest_y, z=self.dest_z)
+        self.agent.set_destination(dest)
+
         self.world.on_tick(hud.on_world_tick)
 
         # recording
         self.episode_number = args.episode_number
-        self.rec_width = args.rec_width
-        self.rec_height = args.rec_height
         self.save_png = args.save_png
-        self.record_lag = (args.world_fps // args.record_fps) - 1
-        self.record_counter = 0
         self.recording = False
         self.observations = []
         self.commands = []
@@ -85,8 +99,6 @@ class World(object):
             np_actions = np.empty((len(self.actions), 3))
 
             for i, (obs, cmd, spd, act) in enumerate(zip(self.observations, self.commands, self.speeds, self.actions)):
-                # obs = Image.fromarray(obs)
-                # obs = pil_obs.resize((self.rec_width, self.rec_height))
 
                 if self.save_png:
                     plt.imsave(os.path.join(directory, f'obs_{i}.png'), obs)
@@ -105,23 +117,18 @@ class World(object):
             self.commands = []
             self.speeds = []
             self.actions = []
-            self.record_counter = 0
 
         self.recording = not self.recording
 
     def record(self):
         if self.recording:
-            if self.record_counter == self.record_lag:
-                self.observations.append(np.copy(self.camera_manager.obs))
-                self.commands.append(np.copy(self.command))
-                c = self.player.get_control()
-                self.actions.append(np.array([c.throttle, c.steer, c.brake]))
+            self.observations.append(np.copy(self.camera_manager.obs))
+            self.commands.append(np.copy(self.command))
+            c = self.player.get_control()
+            self.actions.append(np.array([c.throttle, c.steer, c.brake]))
 
-                v = self.player.get_velocity()
-                self.speeds.append(math.sqrt(v.x**2 + v.y**2 + v.z**2))
-                self.record_counter = 0
-            else:
-                self.record_counter += 1
+            v = self.player.get_velocity()
+            self.speeds.append(math.sqrt(v.x**2 + v.y**2 + v.z**2))
 
     def restart(self):
 
@@ -134,10 +141,9 @@ class World(object):
 
         # spawn the vehicle
         while self.player is None:
-            # spawn_point = random.choice(self.map.get_spawn_points())
             spawn_point = carla.Transform(
-                carla.Location(x=self.spawn_x, y=self.spawn_y, z=self.spawn_z),
-                carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0))
+                carla.Location(x=self.spawn_x + 20 * random.random(), y=self.spawn_y, z=self.spawn_z),
+                carla.Rotation(pitch=0.0, yaw=self.yaw, roll=0.0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             physics_control = self.player.get_physics_control()
             physics_control.use_sweep_wheel_collision = True
@@ -183,11 +189,10 @@ class World(object):
 
 
 class KeyboardControl(object):
-    def __init__(self, world):
-        self._autopilot_enabled = False
+    def __init__(self, world, autopilot_enabled):
+        self._autopilot_enabled = autopilot_enabled
         self._control = carla.VehicleControl()
         self._lights = carla.VehicleLightState.NONE
-        world.player.set_autopilot(self._autopilot_enabled)
         world.player.set_light_state(self._lights)
         self._steer_cache = 0.0
 
@@ -199,7 +204,6 @@ class KeyboardControl(object):
                     world.hud.toggle_info()
                 if event.key == K_p:
                     self._autopilot_enabled = not self._autopilot_enabled
-                    world.player.set_autopilot(self._autopilot_enabled)
                 if event.key == K_q:
                     self._control.gear = 1 if self._control.reverse else -1
                 if event.key == K_TAB:
@@ -213,7 +217,9 @@ class KeyboardControl(object):
                 if event.key == K_RIGHT:
                     world.set_command('right')
 
-        if not self._autopilot_enabled:
+        if self._autopilot_enabled:
+            world.player.apply_control(world.agent.run_step())
+        else:
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
             self._control.reverse = self._control.gear < 0
 
@@ -437,70 +443,72 @@ def game_loop(args):
         os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
     pygame.init()
-    pygame.font.init()
     world = None
 
     try:
-
         # connect to carla server
         client = carla.Client(args.host, args.port)
         client.set_timeout(5.0)
+    finally:
+        pass
 
-        # load world
-        sim_world = client.load_world(args.map)
-        # sim_world.unload_map_layer(carla.MapLayer.All)
-        sim_world.unload_map_layer(carla.MapLayer.StreetLights)
-        sim_world.unload_map_layer(carla.MapLayer.Foliage)
-        sim_world.unload_map_layer(carla.MapLayer.Particles)
-        sim_world.unload_map_layer(carla.MapLayer.ParkedVehicles)
+    for eps in range(args.num_episodes):
 
-        # apply settings
-        settings = sim_world.get_settings()
-        settings.synchronous_mode = True
-        settings.fixed_delta_seconds = 1 / args.world_fps
-        sim_world.apply_settings(settings)
+        pygame.font.init()
+        args.episode_number = eps
 
-        # initialize pygame
-        display = pygame.display.set_mode((args.width, args.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
-        display.fill((0, 0, 0))
-        pygame.display.flip()
+        try:
+            # load world
+            sim_world = client.load_world(args.map)
+            sim_world.unload_map_layer(carla.MapLayer.StreetLights)
+            sim_world.unload_map_layer(carla.MapLayer.Foliage)
+            sim_world.unload_map_layer(carla.MapLayer.Particles)
+            sim_world.unload_map_layer(carla.MapLayer.ParkedVehicles)
 
-        hud = HUD(args.width, args.height)
-        world = World(sim_world, hud, args)
-        controller = KeyboardControl(world)
+            # apply settings
+            settings = sim_world.get_settings()
+            settings.synchronous_mode = True
+            settings.fixed_delta_seconds = 1 / args.fps
+            sim_world.apply_settings(settings)
 
-        # autopilot
-        world.player.set_autopilot(args.autopilot)
+            # initialize pygame
+            display = pygame.display.set_mode((args.width, args.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+            display.fill((0, 0, 0))
+            pygame.display.flip()
 
-        # recording
-        if args.record:
-            world.toggle_recording()
+            hud = HUD(args.width, args.height)
+            world = World(sim_world, hud, args)
+            controller = KeyboardControl(world, autopilot_enabled=args.autopilot)
 
-        sim_world.tick()
-        clock = pygame.time.Clock()
-
-        for i in range(args.episode_length * args.world_fps):
-            location = world.player.get_transform().location
-            if location.x < 172.0 or location.y > 120.0:
-                world.set_command('forward')
-            else:
-                world.set_command('right')
+            # recording
+            if args.record:
+                world.toggle_recording()
 
             sim_world.tick()
-            clock.tick_busy_loop(args.world_fps)
-            controller.parse_events(world, clock)
-            world.tick(clock)
-            world.render(display)
-            pygame.display.flip()
-            world.record()
+            clock = pygame.time.Clock()
 
-        if args.record:
-            world.toggle_recording()
+            while not world.agent.done():
+                location = world.player.get_transform().location
+                if location.x < 172.0 or location.y > 120.0:
+                    world.set_command('forward')
+                else:
+                    world.set_command('right')
 
-    finally:
-        if world is not None:
-            world.destroy()
-        pygame.quit()
+                sim_world.tick()
+                clock.tick_busy_loop(args.fps)
+                controller.parse_events(world, clock)
+                world.tick(clock)
+                world.render(display)
+                pygame.display.flip()
+                world.record()
+
+            if args.record:
+                world.toggle_recording()
+
+        finally:
+            if world is not None:
+                world.destroy()
+            pygame.quit()
 
 
 # ------------------------------------------------------------------------------
@@ -508,40 +516,33 @@ def game_loop(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-v', '--verbose', action='store_true', dest='debug',
-                        help='print debug information')
     parser.add_argument('--host', metavar='H', default='127.0.0.1',
                         help='IP of the host server (default: 127.0.0.1)')
-    parser.add_argument( '-p', '--port', metavar='P', default=2000, type=int,
+    parser.add_argument('-p', '--port', metavar='P', default=2000, type=int,
                          help='TCP port to listen to (default: 2000)')
     parser.add_argument('--res', metavar='WIDTHxHEIGHT', default='256x144',
                         help='window resolution')
-    parser.add_argument('--rec-res', metavar='WIDTHxHEIGHT', default='256x144',
-                        help='recording resolution')
     parser.add_argument('--vehicle', default='model3',
                         help='vehicle name')
     parser.add_argument('--map', default='Town02_Opt',
                         help='map name')
     parser.add_argument('--gamma', default=2.2, type=float,
                         help='Gamma correction of the camera (default: 2.2)')
-    parser.add_argument('--world-fps', default=10)
-    parser.add_argument('--record-fps', default=10)
-    parser.add_argument('--save-png', type=bool, default=True,
-                        help='True: observations are stored as png, False: npy array')
+    parser.add_argument('--fps', default=10)
+    parser.add_argument('--save-png', type=bool, default=True)
     parser.add_argument('--no-screen', type=bool, default=True)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--episode-length', type=int, default=15,
-                        help='episode length in seconds')
-    parser.add_argument('--episode-number', type=int, default=0)
-    parser.add_argument('--spawn', metavar='X,Y,Z', default='136.0,109.4,0.5',
-                        help='window resolution')
+    parser.add_argument('--num-episodes', type=int, default=2)
+    parser.add_argument('--spawn', metavar='X,Y,Z', default='135.0,109.4,0.5')
+    parser.add_argument('--destination', metavar='X,Y,Z', default='189.8,136.0,0.0')
+    parser.add_argument('--yaw', type=float, default=0.0)
 
     args = parser.parse_args()
     args.width, args.height = [int(x) for x in args.res.split('x')]
-    args.rec_width, args.rec_height = [int(x) for x in args.rec_res.split('x')]
     args.spawn_x, args.spawn_y, args.spawn_z = [float(x) for x in args.spawn.split(',')]
+    args.dest_x, args.dest_y, args.dest_z = [float(x) for x in args.destination.split(',')]
 
     print(f'listening to server {args.host}:{args.port}')
 
