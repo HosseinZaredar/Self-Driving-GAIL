@@ -19,18 +19,18 @@ from torch.utils.tensorboard import SummaryWriter
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
-    parser.add_argument('--disc-learning-rate', type=float, default=6e-5)
+    parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--total_timesteps', type=int, default=500_000)
-    parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
+    parser.add_argument('--total_timesteps', type=int, default=100_000)
+    parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
-    parser.add_argument('--num-steps', type=int, default=64,
+    parser.add_argument('--num-steps', type=int, default=512,
                         help='number of steps in each environment before training')
     parser.add_argument('--anneal-lr', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument("--gamma", type=float, default=0.99, help="the discount factor gamma")
     parser.add_argument("--gae-lambda", type=float, default=0.95,
                         help="the lambda for the general advantage estimation")
-    parser.add_argument("--num-minibatches", type=int, default=4, help="the number of mini-batches")
+    parser.add_argument("--num-minibatches", type=int, default=16, help="the number of mini-batches")
     parser.add_argument("--update-epochs", type=int, default=5, help="the K epochs to update the policy")
     parser.add_argument("--norm-adv", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
                         help="Toggles advantages normalization")
@@ -41,8 +41,8 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-minibatches", type=int, default=4)
-    parser.add_argument("--half-life", type=int, default=250)
+    parser.add_argument("--num-disc-minibatches", type=int, default=16)
+    parser.add_argument("--half-life", type=int, default=50)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=True)
 

@@ -1,5 +1,6 @@
 import math
 
+import random
 import carla
 import os
 import queue
@@ -61,7 +62,7 @@ class CarlaEnv:
         vehicle_bp = blueprint_lib.filter('model3')[0]
         # vehicle_spawn_point = random.choice(self.world.get_map().get_spawn_points())
         vehicle_spawn_point = carla.Transform(
-            carla.Location(x=142.0, y=109.4, z=0.5),
+            carla.Location(x=135.0 + 20 * random.random(), y=109.4, z=0.5),
 
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0))
         self.vehicle = self.world.spawn_actor(vehicle_bp, vehicle_spawn_point)
@@ -117,9 +118,10 @@ class CarlaEnv:
         else:
             command = np.array([0.0, 0.0, 1.0])
 
-        if self.obs_number == 150:
+        dist = math.sqrt((self.target['x'] - location.x) ** 2 + (self.target['y'] - location.y) ** 2)
+
+        if self.obs_number == 150 or dist < 5:
             done = True
-            dist = math.sqrt((self.target['x'] - location.x) ** 2 + (self.target['y'] - location.y) ** 2)
             info = {'distance': dist}
         else:
             done = False

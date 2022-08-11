@@ -18,7 +18,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=2)
     parser.add_argument('--num_episodes', type=int, default=1)
-    parser.add_argument('--agent-name', type=str, default='bc_learner')
+    parser.add_argument('--agent-name', type=str, default='bc_gail_learner')
     parser.add_argument('--record', type=lambda x: strtobool(x), default=True)
     parser.add_argument('--use-cuda', type=bool, default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
