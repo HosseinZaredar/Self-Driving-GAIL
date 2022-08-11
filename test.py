@@ -6,8 +6,8 @@ import os
 # plt.imshow(image)
 # plt.show()
 
-expert_speeds = np.load(os.path.join('expert_data', 'eps_0', 'expert_speeds.npy'))
-print(expert_speeds)
+expert_commands = np.load(os.path.join('expert_data', 'eps_0', 'expert_commands.npy'))
+print(expert_commands)
 #
 # import torch
 #

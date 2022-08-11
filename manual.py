@@ -12,6 +12,7 @@
 import carla
 from carla import ColorConverter as cc
 from agents.navigation.basic_agent import BasicAgent
+from agents.navigation.local_planner import RoadOption
 
 import os
 import numpy as np
@@ -142,7 +143,7 @@ class World(object):
         # spawn the vehicle
         while self.player is None:
             spawn_point = carla.Transform(
-                carla.Location(x=self.spawn_x + 20 * random.random(), y=self.spawn_y, z=self.spawn_z),
+                carla.Location(x=self.spawn_x + 0 * random.random(), y=self.spawn_y, z=self.spawn_z),
                 carla.Rotation(pitch=0.0, yaw=self.yaw, roll=0.0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             physics_control = self.player.get_physics_control()
@@ -217,8 +218,17 @@ class KeyboardControl(object):
                 if event.key == K_RIGHT:
                     world.set_command('right')
 
+        # high-level command
+        control, road_option = world.agent.run_step()
+        if road_option == RoadOption.LEFT:
+            world.set_command('left')
+        elif road_option == RoadOption.LANEFOLLOW:
+            world.set_command('forward')
+        elif road_option == RoadOption.RIGHT:
+            world.set_command('right')
+
         if self._autopilot_enabled:
-            world.player.apply_control(world.agent.run_step())
+            world.player.apply_control(control)
         else:
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
             self._control.reverse = self._control.gear < 0
@@ -488,12 +498,6 @@ def game_loop(args):
             clock = pygame.time.Clock()
 
             while not world.agent.done():
-                location = world.player.get_transform().location
-                if location.x < 172.0 or location.y > 120.0:
-                    world.set_command('forward')
-                else:
-                    world.set_command('right')
-
                 sim_world.tick()
                 clock.tick_busy_loop(args.fps)
                 controller.parse_events(world, clock)
@@ -530,13 +534,13 @@ if __name__ == '__main__':
                         help='Gamma correction of the camera (default: 2.2)')
     parser.add_argument('--fps', default=10)
     parser.add_argument('--save-png', type=bool, default=True)
-    parser.add_argument('--no-screen', type=bool, default=True)
+    parser.add_argument('--no-screen', type=bool, default=False)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--num-episodes', type=int, default=2)
-    parser.add_argument('--spawn', metavar='X,Y,Z', default='135.0,109.4,0.5')
-    parser.add_argument('--destination', metavar='X,Y,Z', default='189.8,136.0,0.0')
+    parser.add_argument('--num-episodes', type=int, default=1)
+    parser.add_argument('--spawn', metavar='X,Y,Z', default='10.0,191.7,0.5')
+    parser.add_argument('--destination', metavar='X,Y,Z', default='75.0,241.0,0.0')
     parser.add_argument('--yaw', type=float, default=0.0)
 
     args = parser.parse_args()

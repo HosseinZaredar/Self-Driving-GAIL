@@ -257,7 +257,7 @@ class LocalPlanner(object):
         if debug:
             draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], 1.0)
 
-        return control
+        return control, self.target_road_option
 
     def get_incoming_waypoint_and_direction(self, steps=3):
         """

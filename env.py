@@ -1,11 +1,14 @@
 import math
 
 import random
-import carla
 import os
 import queue
 import numpy as np
 import matplotlib.pyplot as plt
+
+import carla
+from agents.navigation.basic_agent import BasicAgent
+from agents.navigation.local_planner import RoadOption
 
 
 class CarlaEnv:
@@ -16,7 +19,8 @@ class CarlaEnv:
         self.episode_number = -1
         self.obs_number = 0
 
-        self.target = {'x': 189.8, 'y': 136.0}
+        self.spawn = {'x': 10.0, 'y': 191.7}
+        self.dest = {'x': 75.0, 'y': 241.0}
 
         # dimension
         self.observation_space = (3, image_h, image_w)
@@ -29,7 +33,6 @@ class CarlaEnv:
 
         # setting the world up
         self.world = self.client.load_world(world)
-        # self.world.unload_map_layer(carla.MapLayer.All)
         self.world.unload_map_layer(carla.MapLayer.StreetLights)
         self.world.unload_map_layer(carla.MapLayer.Foliage)
         self.world.unload_map_layer(carla.MapLayer.Particles)
@@ -42,6 +45,7 @@ class CarlaEnv:
 
         self.image_queue = queue.Queue()
         self.vehicle = None
+        self.agent = None
         self.camera = None
 
     def reset(self):
@@ -60,10 +64,8 @@ class CarlaEnv:
         # spawning a vehicle
         blueprint_lib = self.world.get_blueprint_library()
         vehicle_bp = blueprint_lib.filter('model3')[0]
-        # vehicle_spawn_point = random.choice(self.world.get_map().get_spawn_points())
         vehicle_spawn_point = carla.Transform(
-            carla.Location(x=135.0 + 20 * random.random(), y=109.4, z=0.5),
-
+            carla.Location(x=self.spawn['x'] + 20 * random.random(), y=self.spawn['y'], z=0.5),
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0))
         self.vehicle = self.world.spawn_actor(vehicle_bp, vehicle_spawn_point)
 
@@ -91,6 +93,12 @@ class CarlaEnv:
         if self.record:
             self.save_obs(obs)
 
+        # setup agent to provide high-level commands
+        self.agent = BasicAgent(self.vehicle)
+        self.agent.ignore_traffic_lights(active=True)
+        dest = carla.Location(x=self.dest['x'], y=self.dest['y'], z=0.0)
+        self.agent.set_destination(dest)
+
         # command: move forward
         command = np.array([0.0, 1.0, 0.0])
 
@@ -112,15 +120,18 @@ class CarlaEnv:
             self.save_obs(obs)
         self.obs_number += 1
 
-        location = self.vehicle.get_transform().location
-        if location.x < 172.0 or location.y > 120.0:
+        control, road_option = self.agent.run_step()
+        if road_option == RoadOption.LEFT:
+            command = np.array([1.0, 0.0, 0.0])
+        elif road_option == RoadOption.LANEFOLLOW:
             command = np.array([0.0, 1.0, 0.0])
-        else:
+        elif road_option == RoadOption.RIGHT:
             command = np.array([0.0, 0.0, 1.0])
 
-        dist = math.sqrt((self.target['x'] - location.x) ** 2 + (self.target['y'] - location.y) ** 2)
+        location = self.vehicle.get_transform().location
+        dist = math.sqrt((self.dest['x'] - location.x) ** 2 + (self.dest['y'] - location.y) ** 2)
 
-        if self.obs_number == 150 or dist < 5:
+        if self.obs_number == 220 or dist < 5:
             done = True
             info = {'distance': dist}
         else:
@@ -161,16 +172,3 @@ class CarlaEnv:
         array = array[:, :, ::-1]
         array = array.transpose((2, 0, 1))
         return array
-
-
-def test():
-    env = CarlaEnv(record=True)
-    for _ in range(2):
-        obs = env.reset()
-        for _ in range(150):
-            env.step(np.array([0.8, 0.0, 0.1]))
-    env.close()
-
-
-if __name__ == '__main__':
-    test()
