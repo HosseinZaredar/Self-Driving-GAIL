@@ -56,7 +56,7 @@ class CarlaEnv:
         # random spawn
         if random_spawn:
             world_map = self.world.get_map()
-            planner = GlobalRoutePlanner(world_map, sampling_resolution=2.0)
+            planner = GlobalRoutePlanner(world_map, sampling_resolution=1.0)
             start_waypoint = world_map.get_waypoint(self.spawn)
             end_waypoint = world_map.get_waypoint(self.dest)
             route = planner.trace_route(
@@ -76,20 +76,23 @@ class CarlaEnv:
         self.agent = None
         self.camera = None
         self.eval_camera = None
+        self.collision_sensor = None
+        self.lane_invasion_sensor = None
+        self.early_terminate = False
 
     def reset(self):
 
         self.episode_number += 1
         self.obs_number = 0
+        self.early_terminate = False
 
-        # deleting vehicle and camera (if they exist)
+        # deleting vehicle and sensors (if already exist)
         self.image_queue = queue.Queue()
-        if self.camera is not None:
-            self.camera.stop()
-            self.camera.destroy()
-        if self.eval_camera is not None:
-            self.eval_camera.stop()
-            self.eval_camera.destroy()
+        sensors = [self.camera, self.eval_camera, self.collision_sensor, self.lane_invasion_sensor]
+        for sensor in sensors:
+            if sensor is not None:
+                sensor.stop()
+                sensor.destroy()
         if self.vehicle:
             self.vehicle.destroy()
 
@@ -98,6 +101,16 @@ class CarlaEnv:
         vehicle_bp = blueprint_lib.filter('model3')[0]
         vehicle_spawn_point = carla.Transform(self.spawn, self.rotation)
         self.vehicle = self.world.spawn_actor(vehicle_bp, vehicle_spawn_point)
+
+        # collision sensor
+        self.collision_sensor = self.world.spawn_actor(
+            blueprint_lib.find('sensor.other.collision'), carla.Transform(), attach_to=self.vehicle)
+        self.collision_sensor.listen(lambda event: self.terminate())
+
+        # lane invasion sensor
+        self.lane_invasion_sensor = self.world.spawn_actor(
+            blueprint_lib.find('sensor.other.lane_invasion'), carla.Transform(), attach_to=self.vehicle)
+        self.lane_invasion_sensor.listen(lambda event: self.terminate())
 
         # setting up main camera
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
@@ -186,7 +199,7 @@ class CarlaEnv:
         dist = math.sqrt((self.dest.x - location.x) ** 2 + (self.dest.y - location.y) ** 2)
 
         # episode termination
-        if self.obs_number == 10 or dist < 5:
+        if self.obs_number == 210 or dist < 5 or self.early_terminate:
             done = True
             info = {'distance': dist}
         else:
@@ -207,6 +220,9 @@ class CarlaEnv:
         self.camera.destroy()
         self.vehicle.destroy()
         print('carla disconnected.')
+
+    def terminate(self):
+        self.early_terminate = True
 
     def save_image(self, image):
         dir = 'agent_rollout'

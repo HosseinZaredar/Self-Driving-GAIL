@@ -46,6 +46,7 @@ class World(object):
         self.map = self.world.get_map()
         self.hud = hud
         self.player = None
+        self.collision_sensor = None
         self.lane_invasion_sensor = None
         self.camera_manager = None
         self.vehicle_name = args.vehicle
@@ -150,6 +151,16 @@ class World(object):
             physics_control.use_sweep_wheel_collision = True
             self.player.apply_physics_control(physics_control)
 
+        # collision sensor
+        self.collision_sensor = self.world.spawn_actor(
+            self.world.get_blueprint_library().find('sensor.other.collision'), carla.Transform(), attach_to=self.player)
+        self.collision_sensor.listen(lambda event: print('collision!'))
+
+        # lane invasion sensor
+        self.lane_invasion_sensor = self.world.spawn_actor(
+            self.world.get_blueprint_library().find('sensor.other.lane_invasion'), carla.Transform(), attach_to=self.player)
+        self.lane_invasion_sensor.listen(lambda event: print('invasion!'))
+
         # setup the camera
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
@@ -177,7 +188,7 @@ class World(object):
         self.camera_manager.index = None
 
     def destroy(self):
-        sensors = [self.camera_manager.sensor]
+        sensors = [self.camera_manager.sensor, self.collision_sensor, self.lane_invasion_sensor]
         for sensor in sensors:
             if sensor is not None:
                 sensor.stop()
@@ -533,12 +544,12 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', default=2.2, type=float,
                         help='Gamma correction of the camera (default: 2.2)')
     parser.add_argument('--fps', default=10)
-    parser.add_argument('--save-png', type=bool, default=True)
-    parser.add_argument('--no-screen', type=bool, default=False)
+    parser.add_argument('--save-png', type=bool, default=False)
+    parser.add_argument('--no-screen', type=bool, default=True)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--num-episodes', type=int, default=3)
+    parser.add_argument('--num-episodes', type=int, default=20)
     parser.add_argument('--spawn', metavar='X,Y,Z', default='10.0,191.7,0.5')
     parser.add_argument('--destination', metavar='X,Y,Z', default='75.0,241.0,0.0')
     parser.add_argument('--yaw', type=float, default=0.0)
