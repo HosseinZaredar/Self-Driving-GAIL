@@ -224,7 +224,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
 
     # carla env setup
-    env = CarlaEnv()
+    env = CarlaEnv(random_spawn=True)
 
     # load expert trajectories
     expert_states = []

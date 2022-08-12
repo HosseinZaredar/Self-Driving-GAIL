@@ -13,7 +13,7 @@ import torch
 # command-line arguments
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', type=int, default=2)
+    parser.add_argument('--seed', type=int, default=3)
     parser.add_argument('--agent-name', type=str, default='bc_learner')
     parser.add_argument('--record', type=lambda x: strtobool(x), default=True)
     parser.add_argument('--use-cuda', type=bool, default=False)

@@ -1,19 +1,21 @@
 import math
 
-import random
 import os
 import queue
+import random
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 import carla
 from agents.navigation.basic_agent import BasicAgent
 from agents.navigation.local_planner import RoadOption
+from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaEnv:
     def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, record=False,
-                 evaluate=False, eval_image_w=1280, eval_image_h=720):
+                 random_spawn=False, evaluate=False, eval_image_w=1280, eval_image_h=720):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -25,8 +27,10 @@ class CarlaEnv:
         self.episode_number = -1
         self.obs_number = 0
 
-        self.spawn = {'x': 10.0, 'y': 191.7}
-        self.dest = {'x': 75.0, 'y': 241.0}
+        # spawn and destination location
+        self.spawn = carla.Location(x=10.0, y=191.7, z=0.5)
+        self.rotation = carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0)
+        self.dest = carla.Location(x=75.0, y=241.0, z=0.0)
 
         # dimension
         self.observation_space = (3, image_h, image_w)
@@ -48,6 +52,23 @@ class CarlaEnv:
         settings.synchronous_mode = True
         settings.fixed_delta_seconds = 1 / fps
         self.world.apply_settings(settings)
+
+        # random spawn
+        if random_spawn:
+            world_map = self.world.get_map()
+            planner = GlobalRoutePlanner(world_map, sampling_resolution=2.0)
+            start_waypoint = world_map.get_waypoint(self.spawn)
+            end_waypoint = world_map.get_waypoint(self.dest)
+            route = planner.trace_route(
+                start_waypoint.transform.location, end_waypoint.transform.location)
+            spawn_points = []
+            for point in route:
+                if point[1] == RoadOption.LANEFOLLOW:
+                    spawn_points.append((point[0].transform.location, point[0].transform.rotation))
+
+            spawn_point = random.choice(spawn_points)
+            self.spawn = carla.Location(x=spawn_point[0].x, y=spawn_point[0].y, z=0.5)
+            self.rotation = spawn_point[1]
 
         self.image_queue = queue.Queue()
         self.eval_image_queue = queue.Queue()
@@ -75,9 +96,7 @@ class CarlaEnv:
         # spawning a vehicle
         blueprint_lib = self.world.get_blueprint_library()
         vehicle_bp = blueprint_lib.filter('model3')[0]
-        vehicle_spawn_point = carla.Transform(
-            carla.Location(x=self.spawn['x'] + 20 * random.random(), y=self.spawn['y'], z=0.5),
-            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0))
+        vehicle_spawn_point = carla.Transform(self.spawn, self.rotation)
         self.vehicle = self.world.spawn_actor(vehicle_bp, vehicle_spawn_point)
 
         # setting up main camera
@@ -126,8 +145,7 @@ class CarlaEnv:
         # setup agent to provide high-level commands
         self.agent = BasicAgent(self.vehicle)
         self.agent.ignore_traffic_lights(active=True)
-        dest = carla.Location(x=self.dest['x'], y=self.dest['y'], z=0.0)
-        self.agent.set_destination(dest)
+        self.agent.set_destination(self.dest)
 
         # command: move forward
         command = np.array([0.0, 1.0, 0.0])
@@ -165,10 +183,10 @@ class CarlaEnv:
 
         # calculate distance to destination
         location = self.vehicle.get_transform().location
-        dist = math.sqrt((self.dest['x'] - location.x) ** 2 + (self.dest['y'] - location.y) ** 2)
+        dist = math.sqrt((self.dest.x - location.x) ** 2 + (self.dest.y - location.y) ** 2)
 
         # episode termination
-        if self.obs_number == 220 or dist < 5:
+        if self.obs_number == 10 or dist < 5:
             done = True
             info = {'distance': dist}
         else:
