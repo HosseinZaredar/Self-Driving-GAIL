@@ -255,7 +255,7 @@ class PPOAgent(nn.Module):
                 nn.utils.clip_grad_norm_(self.parameters(), max_grad_norm)
                 self.optimizer.step()
 
-        return v_loss, pg_loss, entropy_loss
+        return v_loss, pg_loss, bc_loss, full_pg_loss, entropy_loss
 
     def save_models(self):
         print('.... saving models ....')

@@ -21,17 +21,17 @@ def parse_args():
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
     parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--total_timesteps', type=int, default=100_000)
+    parser.add_argument('--total_timesteps', type=int, default=200_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
-    parser.add_argument('--num-steps', type=int, default=512,
+    parser.add_argument('--num-steps', type=int, default=256,
                         help='number of steps in each environment before training')
     parser.add_argument('--anneal-lr', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument("--gamma", type=float, default=0.99, help="the discount factor gamma")
     parser.add_argument("--gae-lambda", type=float, default=0.95,
                         help="the lambda for the general advantage estimation")
-    parser.add_argument("--num-minibatches", type=int, default=16, help="the number of mini-batches")
-    parser.add_argument("--update-epochs", type=int, default=5, help="the K epochs to update the policy")
+    parser.add_argument("--num-minibatches", type=int, default=8, help="the number of mini-batches")
+    parser.add_argument("--update-epochs", type=int, default=4, help="the K epochs to update the policy")
     parser.add_argument("--norm-adv", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
                         help="Toggles advantages normalization")
     parser.add_argument("--clip-coef", type=float, default=0.1, help="the surrogate clipping coefficient")
@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-minibatches", type=int, default=16)
+    parser.add_argument("--num-disc-minibatches", type=int, default=8)
     parser.add_argument("--half-life", type=int, default=50)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=True)
@@ -289,7 +289,7 @@ if __name__ == '__main__':
         alpha = alpha_0 ** t
 
         # agent learning
-        v_loss, pg_loss, entropy_loss = agent.learn(
+        v_loss, pg_loss, bc_loss, full_pg_loss, entropy_loss = agent.learn(
             args.batch_size, args.minibatch_size, args.update_epochs, args.norm_adv, args.clip_coef,
             args.clip_vloss, args.ent_coef, args.vf_coef, args.max_grad_norm, interpolate_bc=True,
             bc_alpha=alpha, bc_states=expert_states, bc_commands=expert_commands,
@@ -300,6 +300,8 @@ if __name__ == '__main__':
         writer.add_scalar("charts/learning_rate", agent.optimizer.param_groups[0]["lr"], global_step)
         writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
         writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
+        writer.add_scalar("losses/bc_loss", bc_loss.item(), global_step)
+        writer.add_scalar("losses/full_pg_loss", full_pg_loss.item(), global_step)
         writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
         writer.add_scalar("losses/disc_raw", disc_raw_loss, global_step)
         writer.add_scalar("losses/disc_total", disc_loss, global_step)
