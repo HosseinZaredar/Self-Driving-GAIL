@@ -28,9 +28,11 @@ class CarlaEnv:
         self.obs_number = 0
 
         # spawn and destination location
+        self.spawn_points = []
         self.spawn = carla.Location(x=10.0, y=191.7, z=0.5)
         self.rotation = carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0)
         self.dest = carla.Location(x=75.0, y=241.0, z=0.0)
+        self.random_spawn = random_spawn
 
         # dimension
         self.observation_space = (3, image_h, image_w)
@@ -54,21 +56,16 @@ class CarlaEnv:
         self.world.apply_settings(settings)
 
         # random spawn
-        if random_spawn:
+        if self.random_spawn:
             world_map = self.world.get_map()
             planner = GlobalRoutePlanner(world_map, sampling_resolution=1.0)
             start_waypoint = world_map.get_waypoint(self.spawn)
             end_waypoint = world_map.get_waypoint(self.dest)
             route = planner.trace_route(
                 start_waypoint.transform.location, end_waypoint.transform.location)
-            spawn_points = []
             for point in route:
                 if point[1] == RoadOption.LANEFOLLOW:
-                    spawn_points.append((point[0].transform.location, point[0].transform.rotation))
-
-            spawn_point = random.choice(spawn_points)
-            self.spawn = carla.Location(x=spawn_point[0].x, y=spawn_point[0].y, z=0.5)
-            self.rotation = spawn_point[1]
+                    self.spawn_points.append((point[0].transform.location, point[0].transform.rotation))
 
         self.image_queue = queue.Queue()
         self.eval_image_queue = queue.Queue()
@@ -95,6 +92,12 @@ class CarlaEnv:
                 sensor.destroy()
         if self.vehicle:
             self.vehicle.destroy()
+
+        # random spawn
+        if self.random_spawn:
+            spawn_point = random.choice(self.spawn_points)
+            self.spawn = carla.Location(x=spawn_point[0].x, y=spawn_point[0].y, z=0.5)
+            self.rotation = spawn_point[1]
 
         # spawning a vehicle
         blueprint_lib = self.world.get_blueprint_library()

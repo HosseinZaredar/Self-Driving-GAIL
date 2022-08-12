@@ -144,7 +144,7 @@ class World(object):
         # spawn the vehicle
         while self.player is None:
             spawn_point = carla.Transform(
-                carla.Location(x=self.spawn_x + 0 * random.random(), y=self.spawn_y, z=self.spawn_z),
+                carla.Location(x=self.spawn_x + 20 * random.random(), y=self.spawn_y, z=self.spawn_z),
                 carla.Rotation(pitch=0.0, yaw=self.yaw, roll=0.0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             physics_control = self.player.get_physics_control()

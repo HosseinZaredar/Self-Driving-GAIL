@@ -85,8 +85,6 @@ class PPOAgent(nn.Module):
         self.checkpoint_file = os.path.join('checkpoints', agent_name)
 
     def get_action_and_value(self, x, command, speed, action=None, deterministic=False):
-        print(x)
-        exit()
         features = torch.concat((self.cnn(x), command, speed), dim=1)
         action_mean, action_logstd = self.actor(features)
         value = self.critic(features)
