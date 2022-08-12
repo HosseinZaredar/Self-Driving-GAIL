@@ -12,10 +12,16 @@ from agents.navigation.local_planner import RoadOption
 
 
 class CarlaEnv:
-    def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, record=False):
+    def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, record=False,
+                 evaluate=False, eval_image_w=1280, eval_image_h=720):
+
         self.image_w = image_w
         self.image_h = image_h
         self.record = record
+        self.evaluate = evaluate
+        self.eval_image_w = eval_image_w
+        self.eval_image_h = eval_image_h
+
         self.episode_number = -1
         self.obs_number = 0
 
@@ -44,9 +50,11 @@ class CarlaEnv:
         self.world.apply_settings(settings)
 
         self.image_queue = queue.Queue()
+        self.eval_image_queue = queue.Queue()
         self.vehicle = None
         self.agent = None
         self.camera = None
+        self.eval_camera = None
 
     def reset(self):
 
@@ -58,6 +66,9 @@ class CarlaEnv:
         if self.camera is not None:
             self.camera.stop()
             self.camera.destroy()
+        if self.eval_camera is not None:
+            self.eval_camera.stop()
+            self.eval_camera.destroy()
         if self.vehicle:
             self.vehicle.destroy()
 
@@ -69,7 +80,7 @@ class CarlaEnv:
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0))
         self.vehicle = self.world.spawn_actor(vehicle_bp, vehicle_spawn_point)
 
-        # setting up a camera
+        # setting up main camera
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
 
         bound_x = 0.5 + self.vehicle.bounding_box.extent.x
@@ -85,13 +96,32 @@ class CarlaEnv:
             attach_to=self.vehicle,
             attachment_type=carla.AttachmentType.Rigid)
 
-        # save camera images in queue
         self.camera.listen(self.image_queue.put)
+
+        # setting up evaluation camera
+        if self.evaluate:
+            camera_bp = blueprint_lib.find('sensor.camera.rgb')
+            camera_bp.set_attribute('image_size_x', f'{self.eval_image_w}')
+            camera_bp.set_attribute('image_size_y', f'{self.eval_image_h}')
+            camera_spawn_point = carla.Transform(
+                carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z),
+                carla.Rotation(pitch=8.0))
+            self.eval_camera = self.world.spawn_actor(
+                camera_bp,
+                camera_spawn_point,
+                attach_to=self.vehicle,
+                attachment_type=carla.AttachmentType.SpringArm)
+
+            self.eval_camera.listen(self.eval_image_queue.put)
 
         self.world.tick()
         obs = self.process_image(self.image_queue.get())
         if self.record:
-            self.save_obs(obs)
+            if self.evaluate:
+                image = self.process_image(self.eval_image_queue.get())
+            else:
+                image = obs
+            self.save_image(image)
 
         # setup agent to provide high-level commands
         self.agent = BasicAgent(self.vehicle)
@@ -117,10 +147,15 @@ class CarlaEnv:
         self.world.tick()
         obs = self.process_image(self.image_queue.get())
         if self.record:
-            self.save_obs(obs)
+            if self.evaluate:
+                image = self.process_image(self.eval_image_queue.get())
+            else:
+                image = obs
+            self.save_image(image)
         self.obs_number += 1
 
-        control, road_option = self.agent.run_step()
+        # get high-level command form global planner
+        _, road_option = self.agent.run_step()
         if road_option == RoadOption.LEFT:
             command = np.array([1.0, 0.0, 0.0])
         elif road_option == RoadOption.LANEFOLLOW:
@@ -128,9 +163,11 @@ class CarlaEnv:
         elif road_option == RoadOption.RIGHT:
             command = np.array([0.0, 0.0, 1.0])
 
+        # calculate distance to destination
         location = self.vehicle.get_transform().location
         dist = math.sqrt((self.dest['x'] - location.x) ** 2 + (self.dest['y'] - location.y) ** 2)
 
+        # episode termination
         if self.obs_number == 220 or dist < 5:
             done = True
             info = {'distance': dist}
@@ -153,7 +190,7 @@ class CarlaEnv:
         self.vehicle.destroy()
         print('carla disconnected.')
 
-    def save_obs(self, obs):
+    def save_image(self, image):
         dir = 'agent_rollout'
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -162,7 +199,7 @@ class CarlaEnv:
         if not os.path.exists(sub_dir):
             os.makedirs(sub_dir)
 
-        plt.imsave(os.path.join(sub_dir, f'obs_{self.obs_number}.png'), obs.transpose(1, 2, 0))
+        plt.imsave(os.path.join(sub_dir, f'obs_{self.obs_number:03}.png'), image.transpose(1, 2, 0))
 
     @staticmethod
     def process_image(image):

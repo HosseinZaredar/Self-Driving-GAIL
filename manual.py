@@ -538,7 +538,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--num-episodes', type=int, default=1)
+    parser.add_argument('--num-episodes', type=int, default=3)
     parser.add_argument('--spawn', metavar='X,Y,Z', default='10.0,191.7,0.5')
     parser.add_argument('--destination', metavar='X,Y,Z', default='75.0,241.0,0.0')
     parser.add_argument('--yaw', type=float, default=0.0)
