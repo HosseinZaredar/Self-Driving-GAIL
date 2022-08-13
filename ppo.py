@@ -89,6 +89,7 @@ class PPOAgent(nn.Module):
         action_mean, action_logstd = self.actor(features)
         value = self.critic(features)
 
+        #action_logstd = torch.tensor(-3.2).expand_as(action_logstd).to(self.device)
         action_std = torch.exp(action_logstd)
         probs = Normal(action_mean, action_std)
         if action is None:

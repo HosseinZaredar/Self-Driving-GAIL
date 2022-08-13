@@ -29,9 +29,9 @@ class CarlaEnv:
 
         # spawn and destination location
         self.spawn_points = []
-        self.spawn = carla.Location(x=10.0, y=191.7, z=0.5)
+        self.spawn = carla.Location(x=155.0, y=109.4, z=0.5)
         self.rotation = carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0)
-        self.dest = carla.Location(x=75.0, y=241.0, z=0.0)
+        self.dest = carla.Location(x=189.9, y=130.0, z=0.0)
         self.random_spawn = random_spawn
 
         # dimension
@@ -113,7 +113,7 @@ class CarlaEnv:
         # lane invasion sensor
         self.lane_invasion_sensor = self.world.spawn_actor(
             blueprint_lib.find('sensor.other.lane_invasion'), carla.Transform(), attach_to=self.vehicle)
-        self.lane_invasion_sensor.listen(lambda event: self.terminate())
+        #self.lane_invasion_sensor.listen(lambda event: self.terminate())
 
         # setting up main camera
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
@@ -202,7 +202,7 @@ class CarlaEnv:
         dist = math.sqrt((self.dest.x - location.x) ** 2 + (self.dest.y - location.y) ** 2)
 
         # episode termination
-        if self.obs_number == 210 or dist < 5 or self.early_terminate:
+        if self.obs_number == 130 or dist < 5 or self.early_terminate:
             done = True
             info = {'distance': dist}
         else:

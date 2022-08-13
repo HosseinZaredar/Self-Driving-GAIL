@@ -16,9 +16,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--learning-rate', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--max_epochs', type=int, default=200)
-    parser.add_argument('--minibatch_size', type=int, default=20)
-    parser.add_argument('--use-cuda', type=bool, nargs='?', default=False)
+    parser.add_argument('--max_epochs', type=int, default=100)
+    parser.add_argument('--minibatch_size', type=int, default=32)
+    parser.add_argument('--use-cuda', type=bool, nargs='?', default=True)
     parser.add_argument('--wandb', type=bool, nargs='?', default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     return parser.parse_args()
@@ -149,6 +149,23 @@ if __name__ == '__main__':
 
                 bc_loss = -bc_log_probs.mean()
                 mean_loss_val += bc_loss.item()
+
+        # deterministic evaluation in the environment
+        if epoch % 2 == 0:
+            with torch.no_grad():
+                done = False
+                obs, command, speed = env.reset()
+
+                while not done:
+                    obs = torch.tensor(obs.copy(), dtype=torch.float).to(device)
+                    command = torch.tensor(command, dtype=torch.float).to(device)
+                    speed = torch.tensor([speed], dtype=torch.float).to(device)
+                    action, _, _, _ = agent.get_action_and_value(
+                        obs.unsqueeze(0), command.unsqueeze(0), speed.unsqueeze(0), deterministic=True)
+                    next_obs, command, speed, _, done, info = env.step(action.view(-1).cpu().numpy())
+                    obs = next_obs
+
+                writer.add_scalar('charts/distance', info['distance'], epoch)
 
         # record rewards for plotting purposes
         writer.add_scalar("charts/learning_rate", agent.optimizer.param_groups[0]["lr"], epoch)

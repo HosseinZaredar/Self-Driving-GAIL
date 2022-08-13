@@ -67,7 +67,7 @@ class LocalPlanner(object):
         self._stop_waypoint_creation = False
 
         # Base parameters
-        self._dt = 1.0 / 10.0
+        self._dt = 1.0 / 30.0
         self._target_speed = 20.0  # Km/h
         self._sampling_radius = 1.0
         self._args_lateral_dict = {'K_P': 1.95, 'K_I': 0.05, 'K_D': 0.2, 'dt': self._dt}

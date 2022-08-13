@@ -144,7 +144,7 @@ class World(object):
         # spawn the vehicle
         while self.player is None:
             spawn_point = carla.Transform(
-                carla.Location(x=self.spawn_x + 20 * random.random(), y=self.spawn_y, z=self.spawn_z),
+                carla.Location(x=self.spawn_x + 10 * random.random(), y=self.spawn_y, z=self.spawn_z),
                 carla.Rotation(pitch=0.0, yaw=self.yaw, roll=0.0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             physics_control = self.player.get_physics_control()
@@ -543,15 +543,15 @@ if __name__ == '__main__':
                         help='map name')
     parser.add_argument('--gamma', default=2.2, type=float,
                         help='Gamma correction of the camera (default: 2.2)')
-    parser.add_argument('--fps', default=10)
+    parser.add_argument('--fps', default=30)
     parser.add_argument('--save-png', type=bool, default=False)
     parser.add_argument('--no-screen', type=bool, default=True)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--num-episodes', type=int, default=20)
-    parser.add_argument('--spawn', metavar='X,Y,Z', default='10.0,191.7,0.5')
-    parser.add_argument('--destination', metavar='X,Y,Z', default='75.0,241.0,0.0')
+    parser.add_argument('--num-episodes', type=int, default=10)
+    parser.add_argument('--spawn', metavar='X,Y,Z', default='150.0,109.4,0.5')
+    parser.add_argument('--destination', metavar='X,Y,Z', default='189.9,130.0,0.0')
     parser.add_argument('--yaw', type=float, default=0.0)
 
     args = parser.parse_args()
