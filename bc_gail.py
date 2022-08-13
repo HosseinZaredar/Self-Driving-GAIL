@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
-    parser.add_argument('--disc-learning-rate', type=float, default=6e-5)
+    parser.add_argument('--disc-learning-rate', type=float, default=3e-5)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--total_timesteps', type=int, default=150_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
@@ -69,7 +69,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         self.wasserstein = wasserstein
         self.bce_loss = nn.BCEWithLogitsLoss()
 
-        self.cnn = CNNBackbone(n_channels=3)
+        self.cnn = CNNBackbone(n_channels=3, dropout=True)
 
         self.disc = nn.Linear(512+3+1+num_actions, 1)
 

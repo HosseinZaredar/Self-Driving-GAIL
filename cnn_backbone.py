@@ -20,19 +20,23 @@ class Scale(nn.Module):
 
 
 class CNNBackbone(nn.Module):
-    def __init__(self, n_channels):
+    def __init__(self, n_channels, dropout=False):
         super(CNNBackbone, self).__init__()
         self.conv = nn.Sequential(
             Scale(1 / 255),
             layer_init(nn.Conv2d(in_channels=n_channels, out_channels=32, kernel_size=4, stride=2)),
             nn.LeakyReLU(),
+            nn.Dropout(0.3) if dropout else nn.Identity(),
             layer_init(nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)),
             nn.LeakyReLU(),
+            nn.Dropout(0.3) if dropout else nn.Identity(),
             layer_init(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2)),
             nn.LeakyReLU(),
+            nn.Dropout(0.3) if dropout else nn.Identity(),
             layer_init(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2)),
             nn.LeakyReLU(),
             nn.Flatten(),
+            nn.Dropout(0.3) if dropout else nn.Identity(),
         )
 
         W, H = 256, 144
@@ -44,6 +48,7 @@ class CNNBackbone(nn.Module):
         self.fc = nn.Sequential(
             layer_init(nn.Linear(fc_dim, 512)),
             nn.LeakyReLU(),
+            nn.Dropout(0.3) if dropout else nn.Identity()
         )
 
     def forward(self, x):
