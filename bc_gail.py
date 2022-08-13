@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
-    parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
+    parser.add_argument('--disc-learning-rate', type=float, default=6e-5)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--total_timesteps', type=int, default=150_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
@@ -32,7 +32,7 @@ def parse_args():
                         help="the lambda for the general advantage estimation")
     parser.add_argument("--num-minibatches", type=int, default=16, help="the number of mini-batches")
     parser.add_argument("--update-epochs", type=int, default=4, help="the K epochs to update the policy")
-    parser.add_argument("--norm-adv", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
+    parser.add_argument("--norm-adv", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
                         help="Toggles advantages normalization")
     parser.add_argument("--clip-coef", type=float, default=0.1, help="the surrogate clipping coefficient")
     parser.add_argument("--clip-vloss", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
@@ -41,6 +41,7 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
+    parser.add_argument("--num-disc-epochs", type=int, default=1)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
     parser.add_argument("--half-life", type=int, default=80)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
@@ -70,13 +71,7 @@ class Discriminator(nn.Module):  # Discriminator Network
 
         self.cnn = CNNBackbone(n_channels=3)
 
-        self.disc = nn.Sequential(
-            nn.Linear(512+3+1+num_actions, 64),
-            nn.Tanh(),
-            nn.Linear(64, 64),
-            nn.Tanh(),
-            nn.Linear(64, 1)
-        )
+        self.disc = nn.Linear(512+3+1+num_actions, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
         self.to(self.device)
@@ -132,6 +127,8 @@ class Discriminator(nn.Module):  # Discriminator Network
         disc_batch_size = n_states // args.num_disc_minibatches
         batch_starts = np.arange(0, n_states, disc_batch_size)
 
+        mean_real_loss = 0
+        mean_fake_loss = 0
         mean_raw_loss = 0
         mean_loss = 0
 
@@ -179,13 +176,17 @@ class Discriminator(nn.Module):  # Discriminator Network
             disc_loss.backward()
             self.optimizer.step()
 
+            mean_real_loss += loss_real.item() if not self.wasserstein else 0.0
+            mean_fake_loss += loss_fake.item() if not self.wasserstein else 0.0
             mean_raw_loss += raw_disc_loss.item()
             mean_loss += disc_loss.item()
 
+        mean_real_loss /= len(batch_starts)
+        mean_fake_loss /= len(batch_starts)
         mean_raw_loss /= len(batch_starts)
         mean_loss /= len(batch_starts)
 
-        return mean_raw_loss, mean_loss
+        return mean_real_loss, mean_fake_loss, mean_raw_loss, mean_loss
 
     # generate rewards
     def generate_rewards(self, agent_states, agent_commands, agent_speeds, agent_actions):
@@ -269,9 +270,10 @@ if __name__ == '__main__':
         global_step = agent.rollout(global_step)
 
         # update discriminator
-        disc_raw_loss, disc_loss = disc.learn(
-            expert_states, expert_commands, expert_speeds, expert_actions,
-            agent.obs, agent.commands, agent.speeds, agent.actions)
+        for _ in range(args.num_disc_epochs):
+            disc_real_loss, disc_fake_loss, disc_raw_loss, disc_loss = disc.learn(
+                expert_states, expert_commands, expert_speeds, expert_actions,
+                agent.obs, agent.commands, agent.speeds, agent.actions)
 
         # calculate rewards
         agent.rewards = disc.generate_rewards(agent.obs, agent.commands, agent.speeds, agent.actions)
@@ -303,5 +305,7 @@ if __name__ == '__main__':
         writer.add_scalar("losses/bc_loss", bc_loss.item(), global_step)
         writer.add_scalar("losses/full_pg_loss", full_pg_loss.item(), global_step)
         writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
+        writer.add_scalar("losses/disc_real", disc_real_loss, global_step)
+        writer.add_scalar("losses/disc_fake", disc_fake_loss, global_step)
         writer.add_scalar("losses/disc_raw", disc_raw_loss, global_step)
         writer.add_scalar("losses/disc_total", disc_loss, global_step)
