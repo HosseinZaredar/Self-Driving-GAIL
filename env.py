@@ -55,14 +55,28 @@ class CarlaEnv:
         settings.fixed_delta_seconds = 1 / fps
         self.world.apply_settings(settings)
 
+        # calculate the route to destination
+        world_map = self.world.get_map()
+        planner = GlobalRoutePlanner(world_map, sampling_resolution=1.0)
+        start_waypoint = world_map.get_waypoint(self.spawn)
+        end_waypoint = world_map.get_waypoint(self.dest)
+        route = planner.trace_route(
+            start_waypoint.transform.location, end_waypoint.transform.location)
+
+        # calculate distance to destination for every point along the road
+        self.distances = []
+        for i in range(len(route) - 1):
+            p1 = route[i][0].transform.location
+            p2 = route[i+1][0].transform.location
+            distance = math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+            self.distances.append(distance)
+        self.distances.append(0)
+
+        for i in reversed(range(len(route) - 1)):
+            self.distances[i] += self.distances[i+1]
+
         # random spawn
         if self.random_spawn:
-            world_map = self.world.get_map()
-            planner = GlobalRoutePlanner(world_map, sampling_resolution=1.0)
-            start_waypoint = world_map.get_waypoint(self.spawn)
-            end_waypoint = world_map.get_waypoint(self.dest)
-            route = planner.trace_route(
-                start_waypoint.transform.location, end_waypoint.transform.location)
             for point in route:
                 if point[1] == RoadOption.LANEFOLLOW:
                     self.spawn_points.append((point[0].transform.location, point[0].transform.rotation))
@@ -81,6 +95,7 @@ class CarlaEnv:
 
         self.episode_number += 1
         self.obs_number = 0
+        self.early_terminate = False
         self.early_terminate = False
 
         # deleting vehicle and sensors (if already exist)
@@ -189,7 +204,7 @@ class CarlaEnv:
         self.obs_number += 1
 
         # get high-level command form global planner
-        _, road_option = self.agent.run_step()
+        _, road_option, num_points_done = self.agent.run_step()
         if road_option == RoadOption.LEFT:
             command = np.array([1.0, 0.0, 0.0])
         elif road_option == RoadOption.LANEFOLLOW:
@@ -199,12 +214,16 @@ class CarlaEnv:
 
         # calculate distance to destination
         location = self.vehicle.get_transform().location
-        dist = math.sqrt((self.dest.x - location.x) ** 2 + (self.dest.y - location.y) ** 2)
+        aerial_dist = math.sqrt((self.dest.x - location.x) ** 2 + (self.dest.y - location.y) ** 2)
+        road_dist = self.distances[num_points_done]
 
         # episode termination
-        if self.obs_number == 230 or dist < 5 or self.early_terminate:
+        if self.obs_number == 230 or self.early_terminate:
             done = True
-            info = {'distance': dist}
+            info = {'distance': road_dist}
+        elif aerial_dist < 5:
+            done = True
+            info = {'distance': 0}
         else:
             done = False
             info = {}

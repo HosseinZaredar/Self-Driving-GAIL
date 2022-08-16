@@ -65,6 +65,7 @@ class LocalPlanner(object):
         self._waypoints_queue = deque(maxlen=10000)
         self._min_waypoint_queue_length = 100
         self._stop_waypoint_creation = False
+        self.num_waypoints = 0
 
         # Base parameters
         self._dt = 1.0 / 30.0
@@ -203,6 +204,8 @@ class LocalPlanner(object):
         for elem in current_plan:
             self._waypoints_queue.append(elem)
 
+        self.num_waypoints = len(current_plan)
+
         self._stop_waypoint_creation = stop_waypoint_creation
 
     def run_step(self, debug=False):
@@ -257,7 +260,9 @@ class LocalPlanner(object):
         if debug:
             draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], 1.0)
 
-        return control, self.target_road_option
+        num_points_done = self.num_waypoints - len(self._waypoints_queue)
+
+        return control, self.target_road_option, num_points_done
 
     def get_incoming_waypoint_and_direction(self, steps=3):
         """

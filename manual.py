@@ -230,8 +230,7 @@ class KeyboardControl(object):
                     world.set_command('right')
 
         # high-level command
-        control, road_option = world.agent.run_step()
-        print(road_option)
+        control, road_option, _ = world.agent.run_step()
         if road_option == RoadOption.LEFT:
             world.set_command('left')
         elif road_option == RoadOption.LANEFOLLOW:
