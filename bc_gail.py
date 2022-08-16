@@ -43,10 +43,10 @@ def parse_args():
 
     parser.add_argument("--num-disc-epochs", type=int, default=1)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
-    parser.add_argument("--half-life", type=int, default=80)
+    parser.add_argument("--half-life", type=int, default=150)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
-    parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=True)
-    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
 
     args = parser.parse_args()
     args.batch_size = args.num_steps
@@ -58,30 +58,40 @@ def parse_args():
 class Discriminator(nn.Module):  # Discriminator Network
 
     # initializer
-    def __init__(self, device, lr, state_dim, num_actions, wasserstein, grad_penalty):
+    def __init__(self, device, lr, state_dim, num_actions, wasserstein, grad_penalty, branched=False):
         super(Discriminator, self).__init__()
         self.lr = lr
         self.state_dim = state_dim
         self.num_actions = num_actions
         self.device = device
         self.checkpoint_file = 'disc'
+        self.branched = branched
 
         self.grad_penalty = grad_penalty
         self.wasserstein = wasserstein
         self.bce_loss = nn.BCEWithLogitsLoss()
 
         self.cnn = CNNBackbone(n_channels=3, dropout=False)
-
-        self.disc = nn.Linear(512+3+1+num_actions, 1)
+        if self.branched:
+            self.disc = nn.Linear(512+1+num_actions, 3)
+        else:
+            self.disc = nn.Linear(512+3+1+num_actions, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
         self.to(self.device)
 
     # forward propagation
     def forward(self, state, command, speed, action):
-        state_features = self.cnn(state)
-        disc_inp = torch.cat([state_features, command, speed, action], dim=1)
-        pred = self.disc(disc_inp)
+        cnn_out = self.cnn(state)
+        if self.branched:
+            disc_inp = torch.cat([cnn_out, speed, action], dim=1)
+            preds = self.disc(disc_inp)
+            pred = command[:, 0:1] * preds[:, 0:1] + \
+                   command[:, 1:2] * preds[:, 1:2] + \
+                   command[:, 2:3] * preds[:, 2:3]
+        else:
+            disc_inp = torch.cat([cnn_out, command, speed, action], dim=1)
+            pred = self.disc(disc_inp)
         return pred
 
     # gradient penalty
@@ -91,17 +101,15 @@ class Discriminator(nn.Module):  # Discriminator Network
         alpha = torch.rand(expert_states.size(0), 1)
 
         # Change state values
-        exp_states = self.cnn(expert_states)
-        agt_states = self.cnn(agent_states)
+        exp_cnn_out = self.cnn(expert_states)
+        agt_cnn_out = self.cnn(agent_states)
 
-        expert_data = torch.cat([exp_states, expert_commands, expert_speeds.unsqueeze(dim=1), expert_actions], dim=1)
-        policy_data = torch.cat([agt_states, agent_commands, agent_speeds, agent_actions], dim=1)
-
+        expert_data = torch.cat([exp_cnn_out, expert_commands, expert_speeds.unsqueeze(dim=1), expert_actions], dim=1)
+        policy_data = torch.cat([agt_cnn_out, agent_commands, agent_speeds, agent_actions], dim=1)
         alpha = alpha.expand_as(expert_data).to(expert_data.device)
-
         mixup_data = alpha * expert_data + (1 - alpha) * policy_data
-
         disc = self.disc(mixup_data)
+
         ones = torch.ones(disc.size()).to(self.device)
         grad = autograd.grad(outputs=disc, inputs=mixup_data, grad_outputs=ones,
                              create_graph=True, retain_graph=True, only_inputs=True)[0]
@@ -245,7 +253,8 @@ if __name__ == '__main__':
     expert_actions = np.concatenate(expert_actions)
 
     # initialize discriminator
-    disc = Discriminator(device, args.disc_learning_rate, env.observation_space, 3, args.wasserstein, args.grad_penalty)
+    disc = Discriminator(device, args.disc_learning_rate, env.observation_space, 3,
+                         args.wasserstein, args.grad_penalty, branched=args.branched)
 
     # initialize ppo agent
     agent = PPOAgent('bc_gail_learner', 3, args.ppo_learning_rate, env, device,

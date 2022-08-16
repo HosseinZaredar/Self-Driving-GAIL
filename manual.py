@@ -231,6 +231,7 @@ class KeyboardControl(object):
 
         # high-level command
         control, road_option = world.agent.run_step()
+        print(road_option)
         if road_option == RoadOption.LEFT:
             world.set_command('left')
         elif road_option == RoadOption.LANEFOLLOW:
@@ -535,7 +536,7 @@ if __name__ == '__main__':
                         help='IP of the host server (default: 127.0.0.1)')
     parser.add_argument('-p', '--port', metavar='P', default=2000, type=int,
                          help='TCP port to listen to (default: 2000)')
-    parser.add_argument('--res', metavar='WIDTHxHEIGHT', default='1280x720',
+    parser.add_argument('--res', metavar='WIDTHxHEIGHT', default='256x144',
                         help='window resolution')
     parser.add_argument('--vehicle', default='model3',
                         help='vehicle name')
@@ -544,10 +545,10 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', default=2.2, type=float,
                         help='Gamma correction of the camera (default: 2.2)')
     parser.add_argument('--fps', default=30)
-    parser.add_argument('--save-png', type=bool, default=True)
-    parser.add_argument('--no-screen', type=bool, default=False)
+    parser.add_argument('--save-png', type=bool, default=False)
+    parser.add_argument('--no-screen', type=bool, default=True)
 
-    parser.add_argument('--record', type=bool, default=False)
+    parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
     parser.add_argument('--num-episodes', type=int, default=5)
     parser.add_argument('--spawn', metavar='X,Y,Z', default='102.0,192.0,0.5')
