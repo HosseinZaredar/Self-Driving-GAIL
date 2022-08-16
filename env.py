@@ -29,9 +29,9 @@ class CarlaEnv:
 
         # spawn and destination location
         self.spawn_points = []
-        self.spawn = carla.Location(x=155.0, y=109.4, z=0.5)
+        self.spawn = carla.Location(x=102.0, y=192.0, z=0.5)
         self.rotation = carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0)
-        self.dest = carla.Location(x=189.9, y=130.0, z=0.0)
+        self.dest = carla.Location(x=110.0, y=236.0, z=0.0)
         self.random_spawn = random_spawn
 
         # dimension
@@ -202,7 +202,7 @@ class CarlaEnv:
         dist = math.sqrt((self.dest.x - location.x) ** 2 + (self.dest.y - location.y) ** 2)
 
         # episode termination
-        if self.obs_number == 130 or dist < 5 or self.early_terminate:
+        if self.obs_number == 230 or dist < 5 or self.early_terminate:
             done = True
             info = {'distance': dist}
         else:

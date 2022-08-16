@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('--use-cuda', type=bool, nargs='?', default=True)
     parser.add_argument('--wandb', type=bool, nargs='?', default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
+    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
     return parser.parse_args()
 
 
@@ -95,7 +96,8 @@ if __name__ == '__main__':
     expert_actions_val = expert_actions[int(ratio * num_states):]
 
     # initialize ppo agent
-    agent = PPOAgent('bc_learner', 3, args.learning_rate, env, device, 0, writer).to(device)
+    agent = PPOAgent('bc_learner', 3, args.learning_rate, env, device, 0,
+                     writer, branched=args.branched).to(device)
     # agent.load_models()
 
     for epoch in range(1, args.max_epochs + 1):
@@ -152,6 +154,8 @@ if __name__ == '__main__':
 
         # deterministic evaluation in the environment
         if epoch % 2 == 0:
+            agent.save_models()
+
             with torch.no_grad():
                 done = False
                 obs, command, speed = env.reset()

@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
-    parser.add_argument('--disc-learning-rate', type=float, default=3e-5)
+    parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--total_timesteps', type=int, default=150_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument("--gae-lambda", type=float, default=0.95,
                         help="the lambda for the general advantage estimation")
     parser.add_argument("--num-minibatches", type=int, default=16, help="the number of mini-batches")
-    parser.add_argument("--update-epochs", type=int, default=4, help="the K epochs to update the policy")
+    parser.add_argument("--update-epochs", type=int, default=8, help="the K epochs to update the policy")
     parser.add_argument("--norm-adv", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
                         help="Toggles advantages normalization")
     parser.add_argument("--clip-coef", type=float, default=0.1, help="the surrogate clipping coefficient")
@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument("--half-life", type=int, default=80)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=True)
+    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=False)
 
     args = parser.parse_args()
     args.batch_size = args.num_steps
@@ -69,7 +70,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         self.wasserstein = wasserstein
         self.bce_loss = nn.BCEWithLogitsLoss()
 
-        self.cnn = CNNBackbone(n_channels=3, dropout=True)
+        self.cnn = CNNBackbone(n_channels=3, dropout=False)
 
         self.disc = nn.Linear(512+3+1+num_actions, 1)
 
@@ -247,7 +248,8 @@ if __name__ == '__main__':
     disc = Discriminator(device, args.disc_learning_rate, env.observation_space, 3, args.wasserstein, args.grad_penalty)
 
     # initialize ppo agent
-    agent = PPOAgent('bc_gail_learner', 3, args.ppo_learning_rate, env, device, args.num_steps, writer).to(device)
+    agent = PPOAgent('bc_gail_learner', 3, args.ppo_learning_rate, env, device,
+                     args.num_steps, writer, branched=args.branched).to(device)
 
     # start the game
     global_step = 0

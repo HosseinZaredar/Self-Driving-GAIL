@@ -76,7 +76,7 @@ class LocalPlanner(object):
         self._max_brake = 0.3
         self._max_steer = 0.8
         self._offset = 0
-        self._base_min_distance = 0.8
+        self._base_min_distance = 2.0
         self._follow_speed_limits = False
 
         # Overload parameters

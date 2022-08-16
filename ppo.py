@@ -16,24 +16,56 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 
 class Actor(nn.Module):
-    def __init__(self, env, num_actions):
+    def __init__(self, env, num_actions, branched=False):
         super(Actor, self).__init__()
-        self.actor_mean = layer_init(nn.Linear(512+3+1, num_actions), std=0.01)
-        self.actor_logstd = nn.Parameter(torch.zeros(1, num_actions))
+        self.branched = branched
+        if branched:
+            self.actor_mean = layer_init(nn.Linear(512 + 1, 3 * num_actions), std=0.01)
+            self.actor_logstd = nn.Parameter(torch.zeros(1, 3 * num_actions))
+        else:
+            self.actor_mean = layer_init(nn.Linear(512+3+1, num_actions), std=0.01)
+            self.actor_logstd = nn.Parameter(torch.zeros(1, num_actions))
 
-    def forward(self, x):
-        action_mean = self.actor_mean(x)
-        action_logstd = self.actor_logstd.expand_as(action_mean)
+    def forward(self, cnn_out, command, speed):
+        if self.branched:
+            features = torch.concat((cnn_out, speed), dim=1)
+            action_means = self.actor_mean(features)
+            action_mean = command[:, 0:1] * action_means[:, 0:3] + \
+                          command[:, 1:2] * action_means[:, 3:6] + \
+                          command[:, 2:3] * action_means[:, 6:9]
+            action_logstd = command[:, 0:1] * self.actor_logstd[:, 0:3] + \
+                          command[:, 1:2] * self.actor_logstd[:, 3:6] + \
+                          command[:, 2:3] * self.actor_logstd[:, 6:9]
+            action_logstd = action_logstd.expand_as(action_mean)
+            return action_mean, action_logstd
+
+        else:
+            features = torch.concat((cnn_out, command, speed), dim=1)
+            action_mean = self.actor_mean(features)
+            action_logstd = self.actor_logstd.expand_as(action_mean)
         return action_mean, action_logstd
 
 
 class Critic(nn.Module):
-    def __init__(self):
+    def __init__(self, branched=False):
         super(Critic, self).__init__()
-        self.critic = layer_init(nn.Linear(512+3+1, 1), std=1)
+        self.branched = branched
+        if branched:
+            self.critic = layer_init(nn.Linear(512+1, 3), std=1)
+        else:
+            self.critic = layer_init(nn.Linear(512+3+1, 1), std=1)
 
-    def forward(self, x):
-        return self.critic(x)
+    def forward(self, cnn_out, command, speed):
+        if self.branched:
+            features = torch.concat((cnn_out, speed), dim=1)
+            values = self.critic(features)
+            value = command[:, 0:1] * values[:, 0:1] + \
+                    command[:, 1:2] * values[:, 1:2] + \
+                    command[:, 2:3] * values[:, 2:3]
+            return value
+        else:
+            features = torch.concat((cnn_out, command, speed), dim=1)
+            return self.critic(features)
 
 
 def sample_expert(expert_states, expert_commands, expert_speeds, expert_actions, num):
@@ -43,7 +75,8 @@ def sample_expert(expert_states, expert_commands, expert_speeds, expert_actions,
 
 # PPO agent class
 class PPOAgent(nn.Module):
-    def __init__(self, agent_name, num_actions, learning_rate, env, device, num_steps, writer, n_channels=3):
+    def __init__(self, agent_name, num_actions, learning_rate, env, device, num_steps, writer,
+                 n_channels=3, branched=False):
         super(PPOAgent, self).__init__()
 
         # storing values
@@ -54,8 +87,8 @@ class PPOAgent(nn.Module):
 
         # networks
         self.cnn = CNNBackbone(n_channels=n_channels)
-        self.actor = Actor(env, num_actions)
-        self.critic = Critic()
+        self.actor = Actor(env, num_actions, branched=branched)
+        self.critic = Critic(branched=branched)
 
         # model optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate, eps=1e-5)
@@ -85,11 +118,11 @@ class PPOAgent(nn.Module):
         self.checkpoint_file = os.path.join('checkpoints', agent_name)
 
     def get_action_and_value(self, x, command, speed, action=None, deterministic=False):
-        features = torch.concat((self.cnn(x), command, speed), dim=1)
-        action_mean, action_logstd = self.actor(features)
-        value = self.critic(features)
+        cnn_out = self.cnn(x)
+        action_mean, action_logstd = self.actor(cnn_out, command, speed)
+        value = self.critic(cnn_out, command, speed)
 
-        #action_logstd = torch.tensor(-3.2).expand_as(action_logstd).to(self.device)
+        # action_logstd = torch.tensor(-3.2).expand_as(action_logstd).to(self.device)
         action_std = torch.exp(action_logstd)
         probs = Normal(action_mean, action_std)
         if action is None:
@@ -100,8 +133,8 @@ class PPOAgent(nn.Module):
         return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), value
 
     def get_value(self, x, command, speed):
-        features = torch.concat((self.cnn(x), command, speed), dim=1)
-        return self.critic(features)
+        cnn_out = self.cnn(x)
+        return self.critic(cnn_out, command, speed)
 
     # rollout for num_steps in the environment
     def rollout(self, start_global_step):
