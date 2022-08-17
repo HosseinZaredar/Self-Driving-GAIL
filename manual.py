@@ -47,7 +47,6 @@ class World(object):
         self.hud = hud
         self.player = None
         self.collision_sensor = None
-        self.lane_invasion_sensor = None
         self.camera_manager = None
         self.vehicle_name = args.vehicle
         self._gamma = args.gamma
@@ -144,7 +143,7 @@ class World(object):
         # spawn the vehicle
         while self.player is None:
             spawn_point = carla.Transform(
-                carla.Location(x=self.spawn_x + 10 * random.random(), y=self.spawn_y, z=self.spawn_z),
+                carla.Location(x=self.spawn_x + 5 * random.random(), y=self.spawn_y, z=self.spawn_z),
                 carla.Rotation(pitch=0.0, yaw=self.yaw, roll=0.0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             physics_control = self.player.get_physics_control()
@@ -155,11 +154,6 @@ class World(object):
         self.collision_sensor = self.world.spawn_actor(
             self.world.get_blueprint_library().find('sensor.other.collision'), carla.Transform(), attach_to=self.player)
         self.collision_sensor.listen(lambda event: print('collision!'))
-
-        # lane invasion sensor
-        self.lane_invasion_sensor = self.world.spawn_actor(
-            self.world.get_blueprint_library().find('sensor.other.lane_invasion'), carla.Transform(), attach_to=self.player)
-        self.lane_invasion_sensor.listen(lambda event: print('invasion!'))
 
         # setup the camera
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
@@ -188,7 +182,7 @@ class World(object):
         self.camera_manager.index = None
 
     def destroy(self):
-        sensors = [self.camera_manager.sensor, self.collision_sensor, self.lane_invasion_sensor]
+        sensors = [self.camera_manager.sensor, self.collision_sensor]
         for sensor in sensors:
             if sensor is not None:
                 sensor.stop()
@@ -473,10 +467,14 @@ def game_loop(args):
     finally:
         pass
 
-    for eps in range(args.num_episodes):
+    for eps in range(args.num_episodes * len(args.spawns)):
 
         pygame.font.init()
         args.episode_number = eps
+        idx = eps // args.num_episodes
+        args.spawn_x, args.spawn_y, args.spawn_z = [float(x) for x in args.spawns[idx].split(',')]
+        args.dest_x, args.dest_y, args.dest_z = [float(x) for x in args.dests[idx].split(',')]
+        args.yaw = args.yaws[idx]
 
         try:
             # load world
@@ -543,21 +541,26 @@ if __name__ == '__main__':
                         help='map name')
     parser.add_argument('--gamma', default=2.2, type=float,
                         help='Gamma correction of the camera (default: 2.2)')
-    parser.add_argument('--fps', default=30)
+    parser.add_argument('--fps', default=10)
     parser.add_argument('--save-png', type=bool, default=False)
     parser.add_argument('--no-screen', type=bool, default=True)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--num-episodes', type=int, default=5)
-    parser.add_argument('--spawn', metavar='X,Y,Z', default='153.0,191.9,0.5')
-    parser.add_argument('--destination', metavar='X,Y,Z', default='189.9,225.0,0.0')
-    parser.add_argument('--yaw', type=float, default=0.0)
+    parser.add_argument('--num-episodes', type=int, default=1)
+    parser.add_argument(
+        '--spawns', metavar='X,Y,Z',
+        default='153.0,191.9,0.5 153.0,191.9,0.5 153.0,241.2,0.5 153.0,241.2,0.5 41.7,265.0,0.5 41.7,265.0,0.5')
+    parser.add_argument(
+        '--dests', metavar='X,Y,Z',
+        default='189.9,218.0,0.0 193.9,170.0,0.0 189.9,267.0,0.0 193.9,220.0,0.0 18.0,302.0,0.0 61.0,306.9,0.0')
+    parser.add_argument('--yaws', default='0.0 0.0 0.0 0.0 90.0 90.0')
 
     args = parser.parse_args()
     args.width, args.height = [int(x) for x in args.res.split('x')]
-    args.spawn_x, args.spawn_y, args.spawn_z = [float(x) for x in args.spawn.split(',')]
-    args.dest_x, args.dest_y, args.dest_z = [float(x) for x in args.destination.split(',')]
+    args.spawns = args.spawns.split()
+    args.dests = args.dests.split()
+    args.yaws = [float(x) for x in args.yaws.split()]
 
     print(f'listening to server {args.host}:{args.port}')
 

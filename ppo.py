@@ -298,4 +298,3 @@ class PPOAgent(nn.Module):
     def load_models(self):
         print('.... loading models ....')
         self.load_state_dict(torch.load(self.checkpoint_file))
-

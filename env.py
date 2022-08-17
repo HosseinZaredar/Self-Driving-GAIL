@@ -28,11 +28,34 @@ class CarlaEnv:
         self.obs_number = 0
 
         # spawn and destination location
-        self.spawn = [carla.Location(x=153.0, y=191.9, z=0.5), carla.Location(x=153.0, y=191.9, z=0.5)]
-        self.rotation = [carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0), carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0)]
-        self.dest = [carla.Location(x=189.9, y=218.0, z=0.0), carla.Location(x=193.9, y=170.0, z=0.0)]
+        self.spawn = [
+            carla.Location(x=153.0, y=191.9, z=0.5),
+            carla.Location(x=153.0, y=191.9, z=0.5),
+            carla.Location(x=153.0, y=241.2, z=0.5),
+            carla.Location(x=153.0, y=241.2, z=0.5),
+            carla.Location(x=41.7, y=265.0, z=0.5),
+            carla.Location(x=41.7, y=265.0, z=0.5)
+        ]
+
+        self.rotation = [
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0)
+        ]
+
+        self.dest = [
+            carla.Location(x=189.9, y=218.0, z=0.0),
+            carla.Location(x=193.9, y=170.0, z=0.0),
+            carla.Location(x=189.9, y=267.0, z=0.0),
+            carla.Location(x=193.9, y=220.0, z=0.0),
+            carla.Location(x=18.0, y=302.0, z=0.0),
+            carla.Location(x=61.9, y=306.9, z=0.0),
+        ]
+
         self.random_spawn = random_spawn
-        self.current_path = 0
 
         # dimension
         self.observation_space = (3, image_h, image_w)
@@ -45,10 +68,10 @@ class CarlaEnv:
 
         # setting the world up
         self.world = self.client.load_world(world)
-        self.world.unload_map_layer(carla.MapLayer.StreetLights)
-        self.world.unload_map_layer(carla.MapLayer.Foliage)
-        self.world.unload_map_layer(carla.MapLayer.Particles)
-        self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)
+        # self.world.unload_map_layer(carla.MapLayer.StreetLights)
+        # self.world.unload_map_layer(carla.MapLayer.Foliage)
+        # self.world.unload_map_layer(carla.MapLayer.Particles)
+        # self.world.unload_map_layer(carla.MapLayer.ParkedVehicles)
 
         settings = self.world.get_settings()
         settings.synchronous_mode = True
@@ -107,6 +130,7 @@ class CarlaEnv:
 
         # choose a random path
         self.current_path = random.choice(list(range(len(self.spawn))))
+        self.current_path = 0
 
         # deleting vehicle and sensors (if already exist)
         self.image_queue = queue.Queue()
@@ -134,11 +158,6 @@ class CarlaEnv:
         self.collision_sensor = self.world.spawn_actor(
             blueprint_lib.find('sensor.other.collision'), carla.Transform(), attach_to=self.vehicle)
         self.collision_sensor.listen(lambda event: self.terminate())
-
-        # lane invasion sensor
-        self.lane_invasion_sensor = self.world.spawn_actor(
-            blueprint_lib.find('sensor.other.lane_invasion'), carla.Transform(), attach_to=self.vehicle)
-        #self.lane_invasion_sensor.listen(lambda event: self.terminate())
 
         # setting up main camera
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
@@ -230,7 +249,7 @@ class CarlaEnv:
         road_dist = self.distances[self.current_path][num_points_done]
 
         # episode termination
-        if self.obs_number == 120 or self.early_terminate:
+        if self.obs_number == 130 or self.early_terminate:
             done = True
             info = {'distance': road_dist}
         elif aerial_dist < 5:
