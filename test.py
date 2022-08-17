@@ -34,7 +34,7 @@ w = torch.tensor([
     [0, 0, 1],
 ])
 
-o1 = torch.rand((5, 12))
+o1 = torch.rand((1, 12))
 o2 = torch.rand((5, 4))
 o3 = torch.rand((5, 4))
 

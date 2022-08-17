@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--use-cuda', type=bool, default=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument('--deterministic', type=lambda x: strtobool(x), default=True)
+    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
     return parser.parse_args()
 
 
@@ -39,7 +40,7 @@ if __name__ == '__main__':
     env = CarlaEnv(record=args.record, evaluate=True)
 
     # initializing and loading agent
-    agent = PPOAgent(args.agent_name, 3, 0, env, device, 0, None).to(device)
+    agent = PPOAgent(args.agent_name, 3, 0, env, device, 0, None, branched=args.branched).to(device)
     agent.load_models()
 
     done = False
