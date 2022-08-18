@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--total_timesteps', type=int, default=150_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
-    parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
+    parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument('--num-steps', type=int, default=512,
                         help='number of steps in each environment before training')
     parser.add_argument('--anneal-lr', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
@@ -127,10 +127,10 @@ class Discriminator(nn.Module):  # Discriminator Network
             expert_states, expert_commands, expert_speeds, expert_actions, n_states)
 
         # creating tensors from expert states and actions
-        expert_states_sample = torch.from_numpy(expert_states_sample).float()
-        expert_commands_sample = torch.from_numpy(expert_commands_sample).float()
-        expert_speeds_sample = torch.from_numpy(expert_speeds_sample).float()
-        expert_actions_sample = torch.from_numpy(expert_actions_sample).float()
+        expert_states_sample = torch.from_numpy(expert_states_sample)
+        expert_commands_sample = torch.from_numpy(expert_commands_sample)
+        expert_speeds_sample = torch.from_numpy(expert_speeds_sample)
+        expert_actions_sample = torch.from_numpy(expert_actions_sample)
 
         # creating mini-batches
         disc_batch_size = n_states // args.num_disc_minibatches
@@ -229,6 +229,7 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = args.deterministic_cuda
+    torch.backends.cudnn.benchmark = True
 
     # compute device
     device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
@@ -254,11 +255,11 @@ if __name__ == '__main__':
 
     # initialize discriminator
     disc = Discriminator(device, args.disc_learning_rate, env.observation_space, 3,
-                         args.wasserstein, args.grad_penalty, branched=args.branched)
+                         args.wasserstein, args.grad_penalty, branched=args.branched).float()
 
     # initialize ppo agent
     agent = PPOAgent('bc_gail_learner', 3, args.ppo_learning_rate, env, device,
-                     args.num_steps, writer, branched=args.branched).to(device)
+                     args.num_steps, writer, branched=args.branched).float()
 
     # start the game
     global_step = 0

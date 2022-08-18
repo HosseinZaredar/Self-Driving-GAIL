@@ -1,11 +1,13 @@
 import numpy as np
-from carla.libcarla import Location
-
+import torch
 
 speeds = np.load('expert_data/eps_0/expert_speeds.npy')
-print(speeds)
+commands = np.load('expert_data/eps_0/expert_commands.npy')
+obs = np.load('expert_data/eps_0/expert_states.npy')
+actions = np.load('expert_data/eps_0/expert_actions.npy')
 
-l = Location(x=0.0, y=0.0, z=0.0)
-print(l)
-l.x += 1
-print(l)
+print(speeds.dtype)
+print(commands.dtype)
+print(obs.dtype)
+print(actions.dtype)
+

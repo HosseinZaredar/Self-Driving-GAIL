@@ -81,10 +81,11 @@ class World(object):
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
-            np_observations = np.empty((len(self.observations), * self.observations[0].transpose((2, 0, 1)).shape))
-            np_commands = np.array(self.commands)
-            np_speeds = np.expand_dims(np.array(self.commands), axis=1)
-            np_actions = np.array(self.actions)
+            np_observations = np.empty(
+                (len(self.observations), * self.observations[0].transpose((2, 0, 1)).shape), dtype=np.float32)
+            np_commands = np.array(self.commands, dtype=np.float32)
+            np_speeds = np.expand_dims(np.array(self.speeds, dtype=np.float32), axis=1)
+            np_actions = np.array(self.actions, dtype=np.float32)
 
             for i, obs in enumerate(self.observations):
                 np_observations[i] = np.transpose(obs, (2, 0, 1))

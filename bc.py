@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--minibatch_size', type=int, default=32)
     parser.add_argument('--use-cuda', type=bool, nargs='?', default=True)
-    parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
+    parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
     return parser.parse_args()
 
@@ -41,6 +41,7 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = args.deterministic_cuda
+    torch.backends.cudnn.benchmark = True
 
     # compute device
     device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
@@ -86,8 +87,7 @@ if __name__ == '__main__':
 
     # initialize ppo agent
     agent = PPOAgent('bc_learner', 3, args.learning_rate, env, device, 0,
-                     writer, branched=args.branched).to(device)
-    # agent.load_models()
+                     writer, branched=args.branched).float()
 
     for epoch in range(1, args.max_epochs + 1):
 
@@ -100,13 +100,13 @@ if __name__ == '__main__':
         # train
         for b in batch_starts_train:
             expert_states_batch = torch.from_numpy(
-                expert_states_train[b: b + args.minibatch_size]).float().to(device)
+                expert_states_train[b: b + args.minibatch_size]).to(device)
             expert_commands_batch = torch.from_numpy(
-                expert_commands_train[b: b + args.minibatch_size]).float().to(device)
+                expert_commands_train[b: b + args.minibatch_size]).to(device)
             expert_speeds_batch = torch.from_numpy(
-                expert_speeds_train[b: b + args.minibatch_size]).float().to(device)
+                expert_speeds_train[b: b + args.minibatch_size]).to(device)
             expert_actions_batch = torch.from_numpy(
-                expert_actions_train[b: b + args.minibatch_size]).float().to(device)
+                expert_actions_train[b: b + args.minibatch_size]).to(device)
 
             _, bc_log_probs, _, _ = agent.get_action_and_value(
                 expert_states_batch, expert_commands_batch, expert_speeds_batch, expert_actions_batch)
@@ -125,13 +125,13 @@ if __name__ == '__main__':
         with torch.no_grad():
             for b in batch_starts_val:
                 expert_states_batch = torch.from_numpy(
-                    expert_states_val[b: b + args.minibatch_size]).float().to(device)
+                    expert_states_val[b: b + args.minibatch_size]).to(device)
                 expert_commands_batch = torch.from_numpy(
-                    expert_commands_val[b: b + args.minibatch_size]).float().to(device)
+                    expert_commands_val[b: b + args.minibatch_size]).to(device)
                 expert_speeds_batch = torch.from_numpy(
-                    expert_speeds_val[b: b + args.minibatch_size]).float().to(device)
+                    expert_speeds_val[b: b + args.minibatch_size]).to(device)
                 expert_actions_batch = torch.from_numpy(
-                    expert_actions_val[b: b + args.minibatch_size]).float().to(device)
+                    expert_actions_val[b: b + args.minibatch_size]).to(device)
 
                 _, bc_log_probs, _, _ = agent.get_action_and_value(
                     expert_states_batch, expert_commands_batch, expert_speeds_batch, expert_actions_batch)

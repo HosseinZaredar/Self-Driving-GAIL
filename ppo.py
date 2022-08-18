@@ -112,6 +112,8 @@ class PPOAgent(nn.Module):
         self.advantages = torch.zeros((num_steps,)).to(self.device)
         self.returns = None
 
+        self.to(device)
+
         checkpoint_dir = 'checkpoints'
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
@@ -247,10 +249,10 @@ class PPOAgent(nn.Module):
 
                 # interpolate with behavioral cloning
                 if interpolate_bc:
-                    bc_states_batch = torch.from_numpy(bc_states_sample[mb_inds]).float().to(self.device)
-                    bc_commands_batch = torch.from_numpy(bc_commands_sample[mb_inds]).float().to(self.device)
-                    bc_speeds_batch = torch.from_numpy(bc_speeds_sample[mb_inds]).float().to(self.device)
-                    bc_actions_batch = torch.from_numpy(bc_actions_sample[mb_inds]).float().to(self.device)
+                    bc_states_batch = torch.from_numpy(bc_states_sample[mb_inds]).to(self.device)
+                    bc_commands_batch = torch.from_numpy(bc_commands_sample[mb_inds]).to(self.device)
+                    bc_speeds_batch = torch.from_numpy(bc_speeds_sample[mb_inds]).to(self.device)
+                    bc_actions_batch = torch.from_numpy(bc_actions_sample[mb_inds]).to(self.device)
                     _, bc_log_probs, _, _ = self.get_action_and_value(
                         bc_states_batch, bc_commands_batch, bc_speeds_batch, bc_actions_batch)
                     bc_loss = -bc_log_probs.mean()
