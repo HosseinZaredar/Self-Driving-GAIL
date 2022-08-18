@@ -14,7 +14,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=3)
     parser.add_argument('--agent-name', type=str, default='bc_gail_learner')
     parser.add_argument('--record', type=lambda x: strtobool(x), default=True)
-    parser.add_argument('--use-cuda', type=bool, default=True)
+    parser.add_argument('--use-cuda', type=bool, default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument('--deterministic', type=lambda x: strtobool(x), default=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
