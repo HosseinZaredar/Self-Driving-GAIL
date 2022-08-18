@@ -24,11 +24,15 @@ class CarlaEnv:
 
         self.episode_number = -1
         self.obs_number = 0
-        self.max_episode_steps = 130
+        self.max_episode_steps = 135
 
         # spawn and destination location
         self.current_path = 0
         self.spawns = [
+            carla.Location(x=103.0, y=191.9, z=0.5),
+            carla.Location(x=161.0, y=187.5, z=0.5),
+            carla.Location(x=103.0, y=241.2, z=0.5),
+            carla.Location(x=161.0, y=236.7, z=0.5),
             carla.Location(x=153.0, y=191.9, z=0.5),
             carla.Location(x=153.0, y=191.9, z=0.5),
             carla.Location(x=153.0, y=241.2, z=0.5),
@@ -37,12 +41,20 @@ class CarlaEnv:
 
         self.rotations = [
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=180.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=180.0),
+            carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
             carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
         ]
 
         self.dests = [
+            carla.Location(x=161.0, y=191.9, z=0.0),
+            carla.Location(x=133.0, y=187.5, z=0.0),
+            carla.Location(x=161.0, y=241.2, z=0.0),
+            carla.Location(x=133.0, y=236.7, z=0.0),
             carla.Location(x=189.9, y=218.0, z=0.0),
             carla.Location(x=193.9, y=170.0, z=0.0),
             carla.Location(x=189.9, y=267.0, z=0.0),
