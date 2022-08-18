@@ -3,7 +3,6 @@ import routes
 import math
 import os
 import queue
-import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -15,7 +14,7 @@ from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 class CarlaEnv:
     def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, record=False,
-                 random_spawn=False, evaluate=False, eval_image_w=640, eval_image_h=360):
+                 random_spawn=False, evaluate=False, on_test_set=False, eval_image_w=640, eval_image_h=360):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -24,15 +23,22 @@ class CarlaEnv:
         self.eval_image_w = eval_image_w
         self.eval_image_h = eval_image_h
 
-        self.episode_number = -1
+        self.episode_number = -2
         self.obs_number = 0
-        self.max_episode_steps = 135
+        self.max_episode_steps = 300
+
+        self.current_path = 0
 
         # spawn and destination location
-        self.current_path = 0
-        self.spawns = routes.spawns
-        self.rotations = routes.rotations
-        self.dests = routes.dests
+        self.on_test_set = on_test_set
+        if not on_test_set:
+            self.spawns = routes.train_spawns
+            self.rotations = routes.train_rotations
+            self.dests = routes.train_dests
+        else:
+            self.spawns = routes.test_spawns
+            self.rotations = routes.test_rotations
+            self.dests = routes.test_dests
 
         self.random_spawn = random_spawn
 
@@ -80,9 +86,10 @@ class CarlaEnv:
 
         # recording directory
         if self.record:
-            self.dir = 'agent_rollout'
-            if not os.path.exists(self.dir):
-                os.makedirs(self.dir)
+            main_dir = 'agent_rollout'
+            if not os.path.exists(main_dir):
+                os.makedirs(main_dir)
+            self.dir = os.path.join(main_dir, 'train' if not self.on_test_set else 'test')
 
         self.image_queue = queue.Queue()
         self.eval_image_queue = queue.Queue()
@@ -94,14 +101,17 @@ class CarlaEnv:
         self.lane_invasion_sensor = None
         self.early_terminate = False
 
-    def reset(self):
+    def reset(self, path=None):
 
         self.episode_number += 1
         self.obs_number = 0
         self.early_terminate = False
 
         # choose a path from the list of paths randomly
-        self.current_path = random.choice(list(range(len(self.spawns))))
+        if path is None:
+            self.current_path = self.episode_number % len(self.spawns)
+        else:
+            self.current_path = path
 
         # deleting vehicle and sensors (if they already exist)
         self.image_queue = queue.Queue()
@@ -159,14 +169,14 @@ class CarlaEnv:
             self.eval_camera.listen(self.eval_image_queue.put)
 
         # episode record directory
-        if self.record:
+        if self.record and self.episode_number != -1:
             sub_dir = os.path.join(self.dir, f'ep_{self.episode_number}')
             if not os.path.exists(sub_dir):
                 os.makedirs(sub_dir)
 
         self.world.tick()
         obs = self.process_image(self.image_queue.get())
-        if self.record:
+        if self.record and self.episode_number != -1:
             if self.evaluate:
                 image = self.process_image(self.eval_image_queue.get())
             else:
@@ -230,7 +240,7 @@ class CarlaEnv:
         if self.obs_number == self.max_episode_steps or self.early_terminate:
             done = True
             info = {'distance': road_dist}
-        elif aerial_dist < 5:
+        elif aerial_dist < 5 or road_dist < 5:
             done = True
             info = {'distance': 0}
         else:

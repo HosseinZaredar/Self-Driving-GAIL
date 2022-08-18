@@ -1,6 +1,6 @@
 import carla
 
-spawns = [
+train_spawns = [
     carla.Location(x=103.0, y=191.9, z=0.5),
     carla.Location(x=161.0, y=187.5, z=0.5),
 
@@ -32,7 +32,7 @@ spawns = [
     carla.Location(x=71.8, y=236.7, z=0.5),
 ]
 
-rotations = [
+train_rotations = [
     carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
     carla.Rotation(pitch=0.0, yaw=180.0, roll=0.0),
 
@@ -64,7 +64,7 @@ rotations = [
     carla.Rotation(pitch=0.0, yaw=180.0, roll=0.0),
 ]
 
-dests = [
+train_dests = [
     carla.Location(x=161.0, y=191.9, z=0.0),
     carla.Location(x=103.0, y=187.5, z=0.0),
 
@@ -94,4 +94,21 @@ dests = [
 
     carla.Location(x=45.8, y=210.0, z=0.0),
     carla.Location(x=41.7, y=278.2, z=0.0),
+]
+
+# ---------------------------------------------------------------
+
+test_spawns = [
+    carla.Location(x=103.0, y=191.9, z=0.5),
+    carla.Location(x=103.0, y=241.2, z=0.5),
+]
+
+test_rotations = [
+    carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+    carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+]
+
+test_dests = [
+    carla.Location(x=103.0, y=236.7, z=0.0),
+    carla.Location(x=153.0, y=191.9, z=0.5),
 ]

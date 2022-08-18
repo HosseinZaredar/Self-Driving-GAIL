@@ -526,9 +526,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.width, args.height = [int(x) for x in args.res.split('x')]
 
-    args.spawns = routes.spawns
-    args.rotations = routes.rotations
-    args.dests = routes.dests
+    args.spawns = routes.train_spawns
+    args.rotations = routes.train_rotations
+    args.dests = routes.train_dests
 
     print(f'listening to server {args.host}:{args.port}')
 
