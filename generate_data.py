@@ -2,15 +2,13 @@
     W            : throttle
     S            : brake
     A/D          : steer left/right
-    F1           : toggle HUD
     Q            : toggle reverse
     P            : toggle autopilot
-    R            : toggle recording
+    TAB          : toggle camera
 """
 
 
 import carla
-from carla import ColorConverter as cc
 from agents.navigation.basic_agent import BasicAgent
 from agents.navigation.local_planner import RoadOption
 
@@ -24,18 +22,13 @@ import weakref
 import matplotlib.pyplot as plt
 
 import pygame
-from pygame.locals import K_F1
 from pygame.locals import K_TAB
-from pygame.locals import K_r
 from pygame.locals import K_q
 from pygame.locals import K_p
 from pygame.locals import K_w
 from pygame.locals import K_a
 from pygame.locals import K_s
 from pygame.locals import K_d
-from pygame.locals import K_UP
-from pygame.locals import K_LEFT
-from pygame.locals import K_RIGHT
 
 
 # ------------------------------------------------------------------------------
@@ -49,22 +42,17 @@ class World(object):
         self.collision_sensor = None
         self.camera_manager = None
         self.vehicle_name = args.vehicle
-        self._gamma = args.gamma
 
         # command
         self.command = None
         self.set_command('forward')
 
         # vehicle spawn
-        self.spawn_x = args.spawn_x
-        self.spawn_y = args.spawn_y
-        self.spawn_z = args.spawn_z
-        self.yaw = args.yaw
+        self.spawn = args.spawn
+        self.rotation = args.rotation
 
         # vehicle destination
-        self.dest_x = args.dest_x
-        self.dest_y = args.dest_y
-        self.dest_z = args.dest_z
+        self.dest = args.dest
 
         # autopilot agent
         self.agent = None
@@ -74,8 +62,7 @@ class World(object):
         # setup autopilot agent
         self.agent = BasicAgent(self.player)
         self.agent.ignore_traffic_lights(active=True)
-        dest = carla.Location(x=self.dest_x, y=self.dest_y, z=self.dest_z)
-        self.agent.set_destination(dest)
+        self.agent.set_destination(self.dest)
 
         self.world.on_tick(hud.on_world_tick)
 
@@ -94,20 +81,15 @@ class World(object):
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
-            np_observations = np.empty((len(self.observations), *self.observations[0].transpose((2, 0, 1)).shape))
-            np_commands = np.empty((len(self.commands), 3))
-            np_speeds = np.empty(len(self.commands))
-            np_actions = np.empty((len(self.actions), 3))
+            np_observations = np.empty((len(self.observations), * self.observations[0].transpose((2, 0, 1)).shape))
+            np_commands = np.array(self.commands)
+            np_speeds = np.expand_dims(np.array(self.commands), axis=1)
+            np_actions = np.array(self.actions)
 
-            for i, (obs, cmd, spd, act) in enumerate(zip(self.observations, self.commands, self.speeds, self.actions)):
-
+            for i, obs in enumerate(self.observations):
+                np_observations[i] = np.transpose(obs, (2, 0, 1))
                 if self.save_png:
                     plt.imsave(os.path.join(directory, f'obs_{i}.png'), obs)
-
-                np_observations[i] = np.transpose(obs, (2, 0, 1))
-                np_commands[i] = cmd
-                np_speeds[i] = spd
-                np_actions[i] = act
 
             np.save(os.path.join(directory, 'expert_states.npy'), np_observations)
             np.save(os.path.join(directory, 'expert_commands.npy'), np_commands)
@@ -142,9 +124,7 @@ class World(object):
 
         # spawn the vehicle
         while self.player is None:
-            spawn_point = carla.Transform(
-                carla.Location(x=self.spawn_x + 5 * random.random(), y=self.spawn_y, z=self.spawn_z),
-                carla.Rotation(pitch=0.0, yaw=self.yaw, roll=0.0))
+            spawn_point = carla.Transform( self.spawn, self.rotation)
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             physics_control = self.player.get_physics_control()
             physics_control.use_sweep_wheel_collision = True
@@ -156,7 +136,7 @@ class World(object):
         self.collision_sensor.listen(lambda event: print('collision!'))
 
         # setup the camera
-        self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
+        self.camera_manager = CameraManager(self.player, self.hud)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index)
         self.world.tick()
@@ -206,28 +186,18 @@ class KeyboardControl(object):
         current_lights = self._lights
         for event in pygame.event.get():
             if event.type == pygame.KEYUP:
-                if event.key == K_F1:
-                    world.hud.toggle_info()
                 if event.key == K_p:
                     self._autopilot_enabled = not self._autopilot_enabled
                 if event.key == K_q:
                     self._control.gear = 1 if self._control.reverse else -1
                 if event.key == K_TAB:
                     world.camera_manager.toggle_camera()
-                if event.key == K_r:
-                    world.toggle_recording()
-                if event.key == K_UP:
-                    world.set_command('forward')
-                if event.key == K_LEFT:
-                    world.set_command('left')
-                if event.key == K_RIGHT:
-                    world.set_command('right')
 
         # high-level command
         control, road_option, _ = world.agent.run_step()
         if road_option == RoadOption.LEFT:
             world.set_command('left')
-        elif road_option == RoadOption.LANEFOLLOW:
+        elif road_option == RoadOption.LANEFOLLOW or road_option == RoadOption.STRAIGHT:
             world.set_command('forward')
         elif road_option == RoadOption.RIGHT:
             world.set_command('right')
@@ -329,9 +299,6 @@ class HUD(object):
             ('Brake:', c.brake, 0.0, 1.0),
             ('Reverse:', c.reverse)]
 
-    def toggle_info(self):
-        self._show_info = not self._show_info
-
     def render(self, display):
         if self._show_info:
             info_surface = pygame.Surface((220, self.dim[1]))
@@ -373,7 +340,7 @@ class HUD(object):
 
 
 class CameraManager(object):
-    def __init__(self, parent_actor, hud, gamma_correction):
+    def __init__(self, parent_actor, hud):
         self.sensor = None
         self.obs = None
         self.surface = None
@@ -394,7 +361,7 @@ class CameraManager(object):
 
         self.transform_index = 1
         self.sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
+            ['sensor.camera.rgb', None, 'Camera RGB', {}],
         ]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()
@@ -402,7 +369,6 @@ class CameraManager(object):
             bp = bp_library.find(item[0])
             bp.set_attribute('image_size_x', str(hud.dim[0]))
             bp.set_attribute('image_size_y', str(hud.dim[1]))
-            bp.set_attribute('gamma', str(gamma_correction))
             for attr_name, attr_value in item[3].items():
                 bp.set_attribute(attr_name, attr_value)
 
@@ -442,7 +408,6 @@ class CameraManager(object):
         self = weak_self()
         if not self:
             return
-        image.convert(self.sensors[self.index][1])
         array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
         array = np.reshape(array, (image.height, image.width, 4))
         array = array[:, :, :3]
@@ -472,17 +437,26 @@ def game_loop(args):
         pygame.font.init()
         args.episode_number = eps
         idx = eps // args.num_episodes
-        args.spawn_x, args.spawn_y, args.spawn_z = [float(x) for x in args.spawns[idx].split(',')]
-        args.dest_x, args.dest_y, args.dest_z = [float(x) for x in args.dests[idx].split(',')]
-        args.yaw = args.yaws[idx]
+
+        args.spawn = args.spawns[idx]
+        args.dest = args.dests[idx]
+        args.rotation = args.rotations[idx]
+
+        # add random shift to vehicle spawn location
+        if args.num_episodes > 1 and eps % args.num_episodes != 0:
+            shift = 5 * random.random()
+            if args.rotation.yaw == 0:
+                args.spawn.x += shift
+            elif args.rotation.yaw == 90:
+                args.spawn.y += shift
+            elif args.rotation.yaw == 180:
+                args.spawn.x -= shift
+            elif args.rotation.yaw == 270:
+                args.spawn.y -= shift
 
         try:
             # load world
             sim_world = client.load_world(args.map)
-            sim_world.unload_map_layer(carla.MapLayer.StreetLights)
-            sim_world.unload_map_layer(carla.MapLayer.Foliage)
-            sim_world.unload_map_layer(carla.MapLayer.Particles)
-            sim_world.unload_map_layer(carla.MapLayer.ParkedVehicles)
 
             # apply settings
             settings = sim_world.get_settings()
@@ -539,28 +513,37 @@ if __name__ == '__main__':
                         help='vehicle name')
     parser.add_argument('--map', default='Town02_Opt',
                         help='map name')
-    parser.add_argument('--gamma', default=2.2, type=float,
-                        help='Gamma correction of the camera (default: 2.2)')
-    parser.add_argument('--fps', default=10)
+    parser.add_argument('--fps', default=30)
     parser.add_argument('--save-png', type=bool, default=False)
     parser.add_argument('--no-screen', type=bool, default=True)
 
     parser.add_argument('--record', type=bool, default=True)
     parser.add_argument('--autopilot', type=bool, default=True)
-    parser.add_argument('--num-episodes', type=int, default=1)
-    parser.add_argument(
-        '--spawns', metavar='X,Y,Z',
-        default='153.0,191.9,0.5 153.0,191.9,0.5 153.0,241.2,0.5 153.0,241.2,0.5 41.7,265.0,0.5 41.7,265.0,0.5')
-    parser.add_argument(
-        '--dests', metavar='X,Y,Z',
-        default='189.9,218.0,0.0 193.9,170.0,0.0 189.9,267.0,0.0 193.9,220.0,0.0 18.0,302.0,0.0 61.0,306.9,0.0')
-    parser.add_argument('--yaws', default='0.0 0.0 0.0 0.0 90.0 90.0')
+    parser.add_argument('--num-episodes', type=int, default=2)
 
     args = parser.parse_args()
     args.width, args.height = [int(x) for x in args.res.split('x')]
-    args.spawns = args.spawns.split()
-    args.dests = args.dests.split()
-    args.yaws = [float(x) for x in args.yaws.split()]
+
+    args.spawns = [
+        carla.Location(x=153.0, y=191.9, z=0.5),
+        carla.Location(x=153.0, y=191.9, z=0.5),
+        carla.Location(x=153.0, y=241.2, z=0.5),
+        carla.Location(x=153.0, y=241.2, z=0.5),
+    ]
+
+    args.rotations = [
+        carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+        carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+        carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+        carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
+    ]
+
+    args.dests = [
+        carla.Location(x=189.9, y=218.0, z=0.0),
+        carla.Location(x=193.9, y=170.0, z=0.0),
+        carla.Location(x=189.9, y=267.0, z=0.0),
+        carla.Location(x=193.9, y=220.0, z=0.0),
+    ]
 
     print(f'listening to server {args.host}:{args.port}')
 

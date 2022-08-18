@@ -95,7 +95,7 @@ class PPOAgent(nn.Module):
 
         # next observation and done in the environment
         obs, command, speed = env.reset()
-        self.next_obs = torch.Tensor(obs.copy()).to(device)
+        self.next_obs = torch.Tensor(obs).to(device)
         self.next_command = torch.Tensor(command.copy()).to(device)
         self.next_speed = torch.Tensor([speed]).to(device)
         self.next_done = torch.zeros(()).to(device)
@@ -161,23 +161,19 @@ class PPOAgent(nn.Module):
             # execute the game and log data
             next_obs, next_command, next_speed, reward, done, info = self.env.step(action.view(-1).cpu().numpy())
             self.rewards[step] = torch.tensor(reward).to(self.device)
-            self.next_obs = torch.Tensor(next_obs.copy()).to(self.device)
+            self.next_obs = torch.Tensor(next_obs).to(self.device)
             self.next_command = torch.Tensor(next_command).to(self.device)
             self.next_speed = torch.Tensor([next_speed]).to(self.device)
             self.next_done = torch.tensor(int(done)).to(self.device)
 
             if self.next_done.item() == 1:
                 obs, command, speed = self.env.reset()
-                self.next_obs = torch.Tensor(obs.copy()).to(self.device)
+                self.next_obs = torch.Tensor(obs).to(self.device)
                 self.next_command = torch.Tensor(command).to(self.device)
                 self.next_speed = torch.Tensor([speed]).to(self.device)
 
             if 'distance' in info.keys():
                 self.writer.add_scalar('charts/distance', info['distance'], global_step)
-
-                # print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                # self.writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                # self.writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
 
         return global_step
 
@@ -256,7 +252,7 @@ class PPOAgent(nn.Module):
                     bc_speeds_batch = torch.from_numpy(bc_speeds_sample[mb_inds]).float().to(self.device)
                     bc_actions_batch = torch.from_numpy(bc_actions_sample[mb_inds]).float().to(self.device)
                     _, bc_log_probs, _, _ = self.get_action_and_value(
-                        bc_states_batch, bc_commands_batch, bc_speeds_batch.unsqueeze(dim=1), bc_actions_batch)
+                        bc_states_batch, bc_commands_batch, bc_speeds_batch, bc_actions_batch)
                     bc_loss = -bc_log_probs.mean()
                     full_pg_loss = bc_alpha * bc_loss + (1 - bc_alpha) * pg_loss
                 else:
@@ -297,4 +293,4 @@ class PPOAgent(nn.Module):
 
     def load_models(self):
         print('.... loading models ....')
-        self.load_state_dict(torch.load(self.checkpoint_file))
+        self.load_state_dict(torch.load(self.checkpoint_file, map_location=self.device))

@@ -1,5 +1,3 @@
-import math
-
 from env import CarlaEnv
 from ppo import PPOAgent
 
@@ -49,8 +47,8 @@ if __name__ == '__main__':
         obs = torch.tensor(obs.copy(), dtype=torch.float).to(device)
         command = torch.tensor(command, dtype=torch.float).to(device)
         speed = torch.tensor([speed], dtype=torch.float).to(device)
-        action, _, _, _ = agent.get_action_and_value(obs.unsqueeze(0), command.unsqueeze(0), speed.unsqueeze(0),
-                                                     deterministic=args.deterministic)
+        action, _, _, _ = agent.get_action_and_value(
+            obs.unsqueeze(0), command.unsqueeze(0), speed.unsqueeze(0), deterministic=args.deterministic)
         next_obs, command, speed, _, done, info = env.step(action.view(-1).cpu().numpy())
         obs = next_obs
 

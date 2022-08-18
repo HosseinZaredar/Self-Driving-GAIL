@@ -104,7 +104,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         exp_cnn_out = self.cnn(expert_states)
         agt_cnn_out = self.cnn(agent_states)
 
-        expert_data = torch.cat([exp_cnn_out, expert_commands, expert_speeds.unsqueeze(dim=1), expert_actions], dim=1)
+        expert_data = torch.cat([exp_cnn_out, expert_commands, expert_speeds, expert_actions], dim=1)
         policy_data = torch.cat([agt_cnn_out, agent_commands, agent_speeds, agent_actions], dim=1)
         alpha = alpha.expand_as(expert_data).to(expert_data.device)
         mixup_data = alpha * expert_data + (1 - alpha) * policy_data
@@ -158,7 +158,7 @@ class Discriminator(nn.Module):  # Discriminator Network
 
             expert_preds = torch.squeeze(
                 self.forward(expert_states_batch, expert_commands_batch,
-                             expert_speeds_batch.unsqueeze(dim=1), expert_actions_batch), dim=-1)
+                             expert_speeds_batch, expert_actions_batch), dim=-1)
 
             if self.wasserstein:
                 raw_disc_loss = -(expert_preds.mean() - agent_preds.mean())

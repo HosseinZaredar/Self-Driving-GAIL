@@ -19,7 +19,6 @@ def parse_args():
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--minibatch_size', type=int, default=32)
     parser.add_argument('--use-cuda', type=bool, nargs='?', default=True)
-    parser.add_argument('--wandb', type=bool, nargs='?', default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
     return parser.parse_args()
@@ -29,16 +28,6 @@ if __name__ == '__main__':
 
     args = parse_args()
     run_name = f'train-bc_{args.seed}_{int(time.time())}'
-
-    if args.wandb is True:
-        import wandb
-        wandb.init(
-            project='Carla',
-            sync_tensorboard=True,
-            config=vars(args),
-            name=run_name,
-            save_code=True,
-        )
 
     # tensorboard setup
     writer = SummaryWriter(os.path.join('runs', run_name))
@@ -120,8 +109,7 @@ if __name__ == '__main__':
                 expert_actions_train[b: b + args.minibatch_size]).float().to(device)
 
             _, bc_log_probs, _, _ = agent.get_action_and_value(
-                expert_states_batch, expert_commands_batch, expert_speeds_batch.unsqueeze(dim=1),
-                expert_actions_batch)
+                expert_states_batch, expert_commands_batch, expert_speeds_batch, expert_actions_batch)
 
             bc_loss = -bc_log_probs.mean()
             mean_loss_train += bc_loss.item()
@@ -146,8 +134,7 @@ if __name__ == '__main__':
                     expert_actions_val[b: b + args.minibatch_size]).float().to(device)
 
                 _, bc_log_probs, _, _ = agent.get_action_and_value(
-                    expert_states_batch, expert_commands_batch, expert_speeds_batch.unsqueeze(dim=1),
-                    expert_actions_batch)
+                    expert_states_batch, expert_commands_batch, expert_speeds_batch, expert_actions_batch)
 
                 bc_loss = -bc_log_probs.mean()
                 mean_loss_val += bc_loss.item()
