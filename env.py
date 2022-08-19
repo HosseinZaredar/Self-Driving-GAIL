@@ -13,20 +13,19 @@ from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaEnv:
-    def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, record=False,
-                 random_spawn=False, evaluate=False, on_test_set=False, eval_image_w=640, eval_image_h=360):
+    def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, random_spawn=False,
+                 evaluate=False, on_test_set=False, eval_image_w=640, eval_image_h=360):
 
         self.image_w = image_w
         self.image_h = image_h
-        self.record = record
+        self.random_spawn = random_spawn
         self.evaluate = evaluate
         self.eval_image_w = eval_image_w
         self.eval_image_h = eval_image_h
 
         self.episode_number = -2
         self.obs_number = 0
-        self.max_episode_steps = 300
-
+        self.max_episode_steps = 130
         self.current_path = 0
 
         # spawn and destination location
@@ -40,10 +39,8 @@ class CarlaEnv:
             self.rotations = routes.test_rotations
             self.dests = routes.test_dests
 
-        self.random_spawn = random_spawn
-
         # dimension
-        self.observation_space = (3, image_h, image_w)
+        self.observation_space = (9, image_h, image_w)
         self.action_space = (3,)
 
         # connecting to carla
@@ -85,17 +82,17 @@ class CarlaEnv:
                 self.distances[i][j] += self.distances[i][j+1]
 
         # recording directory
-        if self.record:
+        if self.evaluate:
             main_dir = 'agent_rollout'
             if not os.path.exists(main_dir):
                 os.makedirs(main_dir)
             self.dir = os.path.join(main_dir, 'train' if not self.on_test_set else 'test')
 
-        self.image_queue = queue.Queue()
+        self.image_queues = [queue.Queue(), queue.Queue(), queue.Queue()]
         self.eval_image_queue = queue.Queue()
         self.vehicle = None
         self.agent = None
-        self.camera = None
+        self.cameras = []
         self.eval_camera = None
         self.collision_sensor = None
         self.lane_invasion_sensor = None
@@ -114,14 +111,9 @@ class CarlaEnv:
             self.current_path = path
 
         # deleting vehicle and sensors (if they already exist)
-        self.image_queue = queue.Queue()
-        sensors = [self.camera, self.eval_camera, self.collision_sensor, self.lane_invasion_sensor]
-        for sensor in sensors:
-            if sensor is not None:
-                sensor.stop()
-                sensor.destroy()
-        if self.vehicle:
-            self.vehicle.destroy()
+        self.image_queues = [queue.Queue(), queue.Queue(), queue.Queue()]
+        self.destroy_sensors()
+        self.cameras = []
 
         # spawning vehicle
         blueprint_lib = self.world.get_blueprint_library()
@@ -134,7 +126,7 @@ class CarlaEnv:
             blueprint_lib.find('sensor.other.collision'), carla.Transform(), attach_to=self.vehicle)
         self.collision_sensor.listen(lambda event: self.terminate())
 
-        # setting up main camera
+        # setting up main cameras
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
 
         bound_x = 0.5 + self.vehicle.bounding_box.extent.x
@@ -143,14 +135,19 @@ class CarlaEnv:
 
         camera_bp.set_attribute('image_size_x', f'{self.image_w}')
         camera_bp.set_attribute('image_size_y', f'{self.image_h}')
-        camera_spawn_point = carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z))
-        self.camera = self.world.spawn_actor(
-            camera_bp,
-            camera_spawn_point,
-            attach_to=self.vehicle,
-            attachment_type=carla.AttachmentType.Rigid)
 
-        self.camera.listen(self.image_queue.put)
+        for i, degree in enumerate([315, 0, 45]):
+            camera_spawn_point = carla.Transform(
+                carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.0 * bound_z),
+                carla.Rotation(yaw=degree)
+            )
+            self.cameras.append(self.world.spawn_actor(
+                camera_bp,
+                camera_spawn_point,
+                attach_to=self.vehicle,
+                attachment_type=carla.AttachmentType.Rigid))
+
+            self.cameras[i].listen(self.image_queues[i].put)
 
         # setting up evaluation camera
         if self.evaluate:
@@ -169,18 +166,19 @@ class CarlaEnv:
             self.eval_camera.listen(self.eval_image_queue.put)
 
         # episode record directory
-        if self.record and self.episode_number != -1:
+        if self.evaluate and self.episode_number != -1:
             sub_dir = os.path.join(self.dir, f'ep_{self.episode_number}')
             if not os.path.exists(sub_dir):
                 os.makedirs(sub_dir)
 
         self.world.tick()
-        obs = self.process_image(self.image_queue.get())
-        if self.record and self.episode_number != -1:
-            if self.evaluate:
-                image = self.process_image(self.eval_image_queue.get())
-            else:
-                image = obs
+        img_0 = self.process_image(self.image_queues[0].get())
+        img_1 = self.process_image(self.image_queues[1].get())
+        img_2 = self.process_image(self.image_queues[2].get())
+        obs = np.vstack((img_0, img_1, img_2))
+
+        if self.evaluate and self.episode_number != -1:
+            image = self.process_image(self.eval_image_queue.get())
             self.save_image(image)
 
         # setup agent to provide high-level commands
@@ -211,12 +209,13 @@ class CarlaEnv:
         self.world.tick()
 
         # get the next observation
-        obs = self.process_image(self.image_queue.get())
-        if self.record:
-            if self.evaluate:
-                image = self.process_image(self.eval_image_queue.get())
-            else:
-                image = obs
+        img_0 = self.process_image(self.image_queues[0].get())
+        img_1 = self.process_image(self.image_queues[1].get())
+        img_2 = self.process_image(self.image_queues[2].get())
+        obs = np.vstack((img_0, img_1, img_2))
+
+        if self.evaluate:
+            image = self.process_image(self.eval_image_queue.get())
             self.save_image(image)
         self.obs_number += 1
 
@@ -257,9 +256,7 @@ class CarlaEnv:
         return obs, command, speed, reward, done, info
 
     def close(self):
-        self.camera.stop()
-        self.camera.destroy()
-        self.vehicle.destroy()
+        self.destroy_sensors()
         print('carla disconnected.')
 
     def terminate(self):
@@ -277,3 +274,12 @@ class CarlaEnv:
         array = array[:, :, ::-1]
         array = array.transpose((2, 0, 1))
         return array.copy()
+
+    def destroy_sensors(self):
+        sensors = [*self.cameras, self.eval_camera, self.collision_sensor, self.lane_invasion_sensor]
+        for sensor in sensors:
+            if sensor is not None:
+                sensor.stop()
+                sensor.destroy()
+        if self.vehicle:
+            self.vehicle.destroy()

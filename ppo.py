@@ -76,7 +76,7 @@ def sample_expert(expert_states, expert_commands, expert_speeds, expert_actions,
 # PPO agent class
 class PPOAgent(nn.Module):
     def __init__(self, agent_name, num_actions, learning_rate, env, device, num_steps, writer,
-                 n_channels=3, branched=False):
+                 n_channels=9, branched=False):
         super(PPOAgent, self).__init__()
 
         # storing values

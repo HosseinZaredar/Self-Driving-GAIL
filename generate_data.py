@@ -4,7 +4,6 @@
     A/D          : steer left/right
     Q            : toggle reverse
     P            : toggle autopilot
-    TAB          : toggle camera
 """
 
 import routes
@@ -13,17 +12,16 @@ import carla
 from agents.navigation.basic_agent import BasicAgent
 from agents.navigation.local_planner import RoadOption
 
+import queue
 import os
 import numpy as np
 import argparse
 import datetime
 import random
 import math
-import weakref
 import matplotlib.pyplot as plt
 
 import pygame
-from pygame.locals import K_TAB
 from pygame.locals import K_q
 from pygame.locals import K_p
 from pygame.locals import K_w
@@ -82,16 +80,16 @@ class World(object):
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
-            np_observations = np.empty(
-                (len(self.observations), * self.observations[0].transpose((2, 0, 1)).shape), dtype=np.float32)
             np_commands = np.array(self.commands, dtype=np.float32)
             np_speeds = np.expand_dims(np.array(self.speeds, dtype=np.float32), axis=1)
             np_actions = np.array(self.actions, dtype=np.float32)
+            np_observations = np.array(self.observations, dtype=np.float32)
 
-            for i, obs in enumerate(self.observations):
-                np_observations[i] = np.transpose(obs, (2, 0, 1))
-                if self.save_png:
-                    plt.imsave(os.path.join(directory, f'obs_{i}.png'), obs)
+            if self.save_png:
+                for i, obs in enumerate(self.observations):
+                    plt.imsave(os.path.join(directory, f'obs_0_{i:03}.png'), obs[0:3].transpose((1, 2, 0)))
+                    plt.imsave(os.path.join(directory, f'obs_1_{i:03}.png'), obs[3:6].transpose((1, 2, 0)))
+                    plt.imsave(os.path.join(directory, f'obs_2_{i:03}.png'), obs[6:9].transpose((1, 2, 0)))
 
             np.save(os.path.join(directory, 'expert_states.npy'), np_observations)
             np.save(os.path.join(directory, 'expert_commands.npy'), np_commands)
@@ -117,10 +115,6 @@ class World(object):
 
     def restart(self):
 
-        # keep same camera config if the camera manager exists
-        cam_index = self.camera_manager.index if self.camera_manager is not None else 0
-        cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
-
         # get vehicle blueprint
         blueprint = self.world.get_blueprint_library().filter(self.vehicle_name)[0]
 
@@ -139,8 +133,6 @@ class World(object):
 
         # setup the camera
         self.camera_manager = CameraManager(self.player, self.hud)
-        self.camera_manager.transform_index = cam_pos_index
-        self.camera_manager.set_sensor(cam_index)
         self.world.tick()
 
     def set_command(self, command):
@@ -152,19 +144,15 @@ class World(object):
             self.command = np.array([0.0, 0.0, 1.0])
 
     def tick(self, clock):
+        self.camera_manager.tick()
         self.hud.tick(self, clock)
 
     def render(self, display):
         self.camera_manager.render(display)
         self.hud.render(display)
 
-    def destroy_sensors(self):
-        self.camera_manager.sensor.destroy()
-        self.camera_manager.sensor = None
-        self.camera_manager.index = None
-
     def destroy(self):
-        sensors = [self.camera_manager.sensor, self.collision_sensor]
+        sensors = [*self.camera_manager.cameras, self.collision_sensor]
         for sensor in sensors:
             if sensor is not None:
                 sensor.stop()
@@ -192,8 +180,6 @@ class KeyboardControl(object):
                     self._autopilot_enabled = not self._autopilot_enabled
                 if event.key == K_q:
                     self._control.gear = 1 if self._control.reverse else -1
-                if event.key == K_TAB:
-                    world.camera_manager.toggle_camera()
 
         # high-level command
         control, road_option, _ = world.agent.run_step()
@@ -343,79 +329,59 @@ class HUD(object):
 
 class CameraManager(object):
     def __init__(self, parent_actor, hud):
-        self.sensor = None
         self.obs = None
         self.surface = None
         self._parent = parent_actor
         self.hud = hud
         self.recording = False
+        self.cameras = []
+
+        self.image_queues = [queue.Queue(), queue.Queue(), queue.Queue()]
+
+        world = self._parent.get_world()
+        blueprint_lib = world.get_blueprint_library()
+        camera_bp = blueprint_lib.find('sensor.camera.rgb')
+
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
-        Attachment = carla.AttachmentType
 
-        self._camera_transforms = [
-            (carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z)),
-             Attachment.Rigid),
-            (carla.Transform(carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z), carla.Rotation(pitch=8.0)),
-             Attachment.SpringArm),
-        ]
+        camera_bp.set_attribute('image_size_x', str(hud.dim[0]))
+        camera_bp.set_attribute('image_size_y', str(hud.dim[1]))
 
-        self.transform_index = 1
-        self.sensors = [
-            ['sensor.camera.rgb', None, 'Camera RGB', {}],
-        ]
-        world = self._parent.get_world()
-        bp_library = world.get_blueprint_library()
-        for item in self.sensors:
-            bp = bp_library.find(item[0])
-            bp.set_attribute('image_size_x', str(hud.dim[0]))
-            bp.set_attribute('image_size_y', str(hud.dim[1]))
-            for attr_name, attr_value in item[3].items():
-                bp.set_attribute(attr_name, attr_value)
-
-            item.append(bp)
-        self.index = None
-
-    def set_sensor(self, index, force_respawn=False):
-        index = index % len(self.sensors)
-        needs_respawn = True if self.index is None else \
-            (force_respawn or (self.sensors[index][2] != self.sensors[self.index][2]))
-        if needs_respawn:
-            if self.sensor is not None:
-                self.sensor.destroy()
-                self.surface = None
-
-            self.sensor = self._parent.get_world().spawn_actor(
-                self.sensors[index][-1],
-                self._camera_transforms[self.transform_index][0],
+        for i, degree in enumerate([315, 0, 45]):
+            camera_spawn_point = carla.Transform(
+                carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.0 * bound_z),
+                carla.Rotation(yaw=degree)
+            )
+            self.cameras.append(world.spawn_actor(
+                camera_bp,
+                camera_spawn_point,
                 attach_to=self._parent,
-                attachment_type=self._camera_transforms[self.transform_index][1])
+                attachment_type=carla.AttachmentType.Rigid))
 
-            # we need to pass the lambda a weak reference to self to avoid circular reference
-            weak_self = weakref.ref(self)
-            self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
-        self.index = index
+            self.cameras[i].listen(self.image_queues[i].put)
 
-    def toggle_camera(self):
-        self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
-        self.set_sensor(self.index, force_respawn=True)
+    def tick(self):
+        img_0 = self._parse_image(self.image_queues[0].get())
+        img_1 = self._parse_image(self.image_queues[1].get())
+        img_2 = self._parse_image(self.image_queues[2].get())
+        self.obs = np.vstack((img_0, img_1, img_2))
+
+        self.surface = pygame.surfarray.make_surface(img_1.swapaxes(0, 2))
 
     def render(self, display):
         if self.surface is not None:
             display.blit(self.surface, (0, 0))
 
     @staticmethod
-    def _parse_image(weak_self, image):
-        self = weak_self()
-        if not self:
-            return
+    def _parse_image(image):
         array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
         array = np.reshape(array, (image.height, image.width, 4))
         array = array[:, :, :3]
         array = array[:, :, ::-1]
-        self.obs = array
-        self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+        array = array.transpose((2, 0, 1))
+        return array.copy()
 
 
 # ------------------------------------------------------------------------------
@@ -475,7 +441,7 @@ def game_loop(args):
             world = World(sim_world, hud, args)
             controller = KeyboardControl(world, autopilot_enabled=args.autopilot)
 
-            # recording
+            # start recording
             if args.record:
                 world.toggle_recording()
 
@@ -491,6 +457,7 @@ def game_loop(args):
                 pygame.display.flip()
                 world.record()
 
+            # stop recording
             if args.record:
                 world.toggle_recording()
 

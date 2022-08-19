@@ -71,7 +71,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         self.wasserstein = wasserstein
         self.bce_loss = nn.BCEWithLogitsLoss()
 
-        self.cnn = CNNBackbone(n_channels=3, dropout=False)
+        self.cnn = CNNBackbone(n_channels=9, dropout=False)
         if self.branched:
             self.disc = nn.Linear(512+1+num_actions, 3)
         else:
