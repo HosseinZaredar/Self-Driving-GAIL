@@ -87,9 +87,9 @@ class World(object):
 
             if self.save_png:
                 for i, obs in enumerate(self.observations):
-                    plt.imsave(os.path.join(directory, f'obs_0_{i:03}.png'), obs[0:3].transpose((1, 2, 0)))
+                    # plt.imsave(os.path.join(directory, f'obs_0_{i:03}.png'), obs[0:3].transpose((1, 2, 0)))
                     plt.imsave(os.path.join(directory, f'obs_1_{i:03}.png'), obs[3:6].transpose((1, 2, 0)))
-                    plt.imsave(os.path.join(directory, f'obs_2_{i:03}.png'), obs[6:9].transpose((1, 2, 0)))
+                    # plt.imsave(os.path.join(directory, f'obs_2_{i:03}.png'), obs[6:9].transpose((1, 2, 0)))
 
             np.save(os.path.join(directory, 'expert_states.npy'), np_observations)
             np.save(os.path.join(directory, 'expert_commands.npy'), np_commands)

@@ -25,7 +25,7 @@ class CarlaEnv:
 
         self.episode_number = -2
         self.obs_number = 0
-        self.max_episode_steps = 130
+        self.max_episode_steps = 135
         self.current_path = 0
 
         # spawn and destination location

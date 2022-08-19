@@ -41,9 +41,9 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-epochs", type=int, default=1)
+    parser.add_argument("--num-disc-epochs", type=int, default=2)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
-    parser.add_argument("--half-life", type=int, default=150)
+    parser.add_argument("--half-life", type=int, default=180)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
@@ -234,7 +234,11 @@ if __name__ == '__main__':
     # compute device
     device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
 
+    # carla env setup
+    env = CarlaEnv()
+
     # load expert trajectories
+    print('loading data...')
     total_length = 0
     for dir in os.listdir('expert_data'):
         with open(os.path.join('expert_data', dir, 'len.txt')) as f:
@@ -261,8 +265,7 @@ if __name__ == '__main__':
 
         loaded_length += episode_length
 
-    # carla env setup
-    env = CarlaEnv()
+    print('data loaded!')
 
     # initialize discriminator
     disc = Discriminator(device, args.disc_learning_rate, env.observation_space, 3,
