@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('--record', type=lambda x: strtobool(x), default=True)
     parser.add_argument('--use-cuda', type=bool, default=False)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
-    parser.add_argument('--deterministic', type=lambda x: strtobool(x), default=True)
+    parser.add_argument('--deterministic', type=lambda x: strtobool(x), default=False)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
     parser.add_argument("--on-test-set", type=lambda x: bool(strtobool(x)), default=True)
     return parser.parse_args()
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
 
     # carla env setup
-    env = CarlaEnv(record=args.record, evaluate=True, on_test_set=args.on_test_set)
+    env = CarlaEnv(evaluate=True, on_test_set=args.on_test_set)
 
     # initializing and loading agent
     agent = PPOAgent(args.agent_name, 3, 0, env, device, 0, None, branched=args.branched).float()

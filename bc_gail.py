@@ -234,24 +234,35 @@ if __name__ == '__main__':
     # compute device
     device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
 
+    # load expert trajectories
+    total_length = 0
+    for dir in os.listdir('expert_data'):
+        with open(os.path.join('expert_data', dir, 'len.txt')) as f:
+            total_length += int(f.readline())
+
+    expert_states = np.empty((total_length, 9, 144, 256), dtype=np.float32)
+    expert_commands = np.empty((total_length, 3), dtype=np.float32)
+    expert_speeds = np.empty((total_length, 1), dtype=np.float32)
+    expert_actions = np.empty((total_length, 3), dtype=np.float32)
+
+    loaded_length = 0
+    for dir in os.listdir('expert_data'):
+
+        np_states = np.load(os.path.join('expert_data', dir, 'expert_states.npy'))
+        np_commands = np.load(os.path.join('expert_data', dir, 'expert_commands.npy'))
+        np_speeds = np.load(os.path.join('expert_data', dir, 'expert_speeds.npy'))
+        np_actions = np.load(os.path.join('expert_data', dir, 'expert_actions.npy'))
+
+        episode_length = np_states.shape[0]
+        expert_states[loaded_length: loaded_length+episode_length] = np_states
+        expert_commands[loaded_length: loaded_length + episode_length] = np_commands
+        expert_speeds[loaded_length: loaded_length + episode_length] = np_speeds
+        expert_actions[loaded_length: loaded_length + episode_length] = np_actions
+
+        loaded_length += episode_length
+
     # carla env setup
     env = CarlaEnv()
-
-    # load expert trajectories
-    expert_states = []
-    expert_commands = []
-    expert_speeds = []
-    expert_actions = []
-    for dir in os.listdir('expert_data'):
-        expert_states.append(np.load(os.path.join('expert_data', dir, 'expert_states.npy')))
-        expert_commands.append(np.load(os.path.join('expert_data', dir, 'expert_commands.npy')))
-        expert_speeds.append(np.load(os.path.join('expert_data', dir, 'expert_speeds.npy')))
-        expert_actions.append(np.load(os.path.join('expert_data', dir, 'expert_actions.npy')))
-
-    expert_states = np.concatenate(expert_states)
-    expert_commands = np.concatenate(expert_commands)
-    expert_speeds = np.concatenate(expert_speeds)
-    expert_actions = np.concatenate(expert_actions)
 
     # initialize discriminator
     disc = Discriminator(device, args.disc_learning_rate, env.observation_space, 3,

@@ -96,6 +96,10 @@ class World(object):
             np.save(os.path.join(directory, 'expert_speeds.npy'), np_speeds)
             np.save(os.path.join(directory, 'expert_actions.npy'), np_actions)
 
+            # write data length
+            with open(os.path.join(directory, 'len.txt'), 'w') as file:
+                file.write(str(np_observations.shape[0]))
+
             self.observations = []
             self.commands = []
             self.speeds = []
@@ -368,7 +372,7 @@ class CameraManager(object):
         img_2 = self._parse_image(self.image_queues[2].get())
         self.obs = np.vstack((img_0, img_1, img_2))
 
-        self.surface = pygame.surfarray.make_surface(img_1.swapaxes(0, 2))
+        self.surface = pygame.surfarray.make_surface(img_1.copy().swapaxes(0, 2))
 
     def render(self, display):
         if self.surface is not None:
@@ -381,7 +385,7 @@ class CameraManager(object):
         array = array[:, :, :3]
         array = array[:, :, ::-1]
         array = array.transpose((2, 0, 1))
-        return array.copy()
+        return array
 
 
 # ------------------------------------------------------------------------------
