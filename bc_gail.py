@@ -41,9 +41,9 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-epochs", type=int, default=2)
+    parser.add_argument("--num-disc-epochs", type=int, default=3)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
-    parser.add_argument("--half-life", type=int, default=180)
+    parser.add_argument("--half-life", type=int, default=150)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)

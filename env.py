@@ -97,12 +97,14 @@ class CarlaEnv:
         self.collision_sensor = None
         self.lane_invasion_sensor = None
         self.early_terminate = False
+        self.invaded = False
 
     def reset(self, path=None):
 
         self.episode_number += 1
         self.obs_number = 0
         self.early_terminate = False
+        self.invaded = False
 
         # choose a path from the list of paths randomly
         if path is None:
@@ -125,6 +127,11 @@ class CarlaEnv:
         self.collision_sensor = self.world.spawn_actor(
             blueprint_lib.find('sensor.other.collision'), carla.Transform(), attach_to=self.vehicle)
         self.collision_sensor.listen(lambda event: self.terminate())
+
+        # lane invasion sensor
+        self.lane_invasion_sensor = self.world.spawn_actor(
+            blueprint_lib.find('sensor.other.lane_invasion'), carla.Transform(), attach_to=self.vehicle)
+        self.lane_invasion_sensor.listen(lambda event: self.invade())
 
         # setting up main cameras
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
@@ -246,8 +253,12 @@ class CarlaEnv:
             done = False
             info = {}
 
-        # environment reward
-        reward = 0
+        # environment reward (in case of lane invasion, -20)
+        if self.invaded:
+            reward = -20
+            self.invaded = False
+        else:
+            reward = 0
 
         # vehicle speed
         v = self.vehicle.get_velocity()
@@ -261,6 +272,9 @@ class CarlaEnv:
 
     def terminate(self):
         self.early_terminate = True
+
+    def invade(self):
+        self.invaded = True
 
     def save_image(self, image):
         plt.imsave(os.path.join(self.dir, f'ep_{self.episode_number}', f'obs_{self.obs_number:03}.png'),
