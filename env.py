@@ -23,9 +23,9 @@ class CarlaEnv:
         self.eval_image_w = eval_image_w
         self.eval_image_h = eval_image_h
 
+        self.max_episode_steps = 135 if not evaluate else 200
         self.episode_number = -2
         self.obs_number = 0
-        self.max_episode_steps = 135
         self.current_path = 0
 
         # spawn and destination location
@@ -80,6 +80,11 @@ class CarlaEnv:
 
             for j in reversed(range(len(route[i]) - 1)):
                 self.distances[i][j] += self.distances[i][j+1]
+
+        # lagging commands in evaluation mode
+        if evaluate:
+            self.command_lag = 5
+            self.commands = [RoadOption.LANEFOLLOW for _ in range(self.command_lag)]
 
         # recording directory
         if self.evaluate:
@@ -228,6 +233,12 @@ class CarlaEnv:
 
         # get high-level command from global planner
         _, road_option, num_points_done = self.agent.run_step()
+
+        # lag in evaluation mode
+        if self.evaluate:
+            self.commands[self.obs_number % self.command_lag] = road_option
+            road_option = self.commands[(self.obs_number + 1) % self.command_lag]
+
         if road_option == RoadOption.LANEFOLLOW or road_option == RoadOption.STRAIGHT:
             command = np.array([0.0, 1.0, 0.0])
         elif road_option == RoadOption.LEFT:
@@ -253,9 +264,9 @@ class CarlaEnv:
             done = False
             info = {}
 
-        # environment reward (in case of lane invasion, -20)
-        if self.invaded:
-            reward = -20
+        # environment reward (in case of collision or lane invasion, -25)
+        if self.invaded or self.early_terminate:
+            reward = -25
             self.invaded = False
         else:
             reward = 0

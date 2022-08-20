@@ -108,6 +108,9 @@ train_dests = [
 # ---------------------------------------------------------------
 
 test_spawns = [
+
+    carla.Location(x=76.8, y=302.4, z=0.5),
+
     carla.Location(x=41.4, y=265.0, z=0.5),
     carla.Location(x=41.4, y=265.0, z=0.5),
 
@@ -116,6 +119,9 @@ test_spawns = [
 ]
 
 test_rotations = [
+
+    carla.Rotation(pitch=0.0, yaw=180.0, roll=0.0),
+
     carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
     carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
 
@@ -124,6 +130,9 @@ test_rotations = [
 ]
 
 test_dests = [
+
+    carla.Location(x=46.2, y=265.0, z=0.0),
+
     carla.Location(x=17.4, y=302.4, z=0.0),
     carla.Location(x=76.8, y=307.0, z=0.0),
 

@@ -204,7 +204,7 @@ class Discriminator(nn.Module):  # Discriminator Network
             clamped_probs = torch.clamp(probs, min=0.01, max=0.99)
             # rewards = torch.log(clamped_probs) - torch.log(1 - clamped_probs)
             rewards = - torch.log(1 - clamped_probs)
-        return rewards
+        return rewards.squeeze()
 
 
 def sample_expert(expert_states, expert_commands, expert_speeds, expert_actions, num):
@@ -302,7 +302,7 @@ if __name__ == '__main__':
                 agent.obs, agent.commands, agent.speeds, agent.actions)
 
         # calculate rewards
-        agent.rewards = disc.generate_rewards(agent.obs, agent.commands, agent.speeds, agent.actions)
+        agent.rewards += disc.generate_rewards(agent.obs, agent.commands, agent.speeds, agent.actions)
 
         # calculate episodic return (for debugging purposes)
         returns = agent.calc_returns(global_step - args.num_steps)
