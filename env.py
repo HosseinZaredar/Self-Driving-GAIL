@@ -2,6 +2,7 @@ import routes
 
 import math
 import os
+import random
 import queue
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,8 +14,8 @@ from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaEnv:
-    def __init__(self, world='Town02_Opt', fps=10, image_w=256, image_h=144, random_spawn=False,
-                 evaluate=False, on_test_set=False, eval_image_w=640, eval_image_h=360):
+    def __init__(self, world='Town02', fps=10, image_w=256, image_h=144, random_spawn=False,
+                 evaluate=False, on_test_set=False, eval_image_w=1280, eval_image_h=720):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -23,10 +24,11 @@ class CarlaEnv:
         self.eval_image_w = eval_image_w
         self.eval_image_h = eval_image_h
 
-        self.max_episode_steps = 135 if not evaluate else 200
+        # episode variables
+        self.max_episode_steps = 135 if not evaluate else 600
         self.episode_number = -2
         self.obs_number = 0
-        self.current_path = 0
+        self.current_route = 0
 
         # spawn and destination location
         self.on_test_set = on_test_set
@@ -39,7 +41,7 @@ class CarlaEnv:
             self.rotations = routes.test_rotations
             self.dests = routes.test_dests
 
-        # dimension
+        # input/output dimension (3 RGB cameras and 3 actions)
         self.observation_space = (9, image_h, image_w)
         self.action_space = (3,)
 
@@ -56,7 +58,7 @@ class CarlaEnv:
         settings.fixed_delta_seconds = 1 / fps
         self.world.apply_settings(settings)
 
-        # calculate the route to destination
+        # calculate the route to destination (to calculate distance)
         world_map = self.world.get_map()
         planner = GlobalRoutePlanner(world_map, sampling_resolution=1.0)
 
@@ -67,7 +69,7 @@ class CarlaEnv:
             route.append(planner.trace_route(
                 start_waypoint.transform.location, end_waypoint.transform.location))
 
-        # calculate distance to destination for every point along the road
+        # calculate distance to destination for every point along the route
         self.distances = [[] for _ in range(len(self.spawns))]
 
         for i in range(len(self.spawns)):
@@ -93,6 +95,7 @@ class CarlaEnv:
                 os.makedirs(main_dir)
             self.dir = os.path.join(main_dir, 'train' if not self.on_test_set else 'test')
 
+        # sensor variables
         self.image_queues = [queue.Queue(), queue.Queue(), queue.Queue()]
         self.eval_image_queue = queue.Queue()
         self.vehicle = None
@@ -104,18 +107,17 @@ class CarlaEnv:
         self.early_terminate = False
         self.invaded = False
 
-    def reset(self, path=None):
-
+    def reset(self, route=None):
         self.episode_number += 1
         self.obs_number = 0
         self.early_terminate = False
         self.invaded = False
 
-        # choose a path from the list of paths randomly
-        if path is None:
-            self.current_path = self.episode_number % len(self.spawns)
+        # choose a route based on episode number or the route passed as an argument
+        if route is None:
+            self.current_route = self.episode_number % len(self.spawns)
         else:
-            self.current_path = path
+            self.current_route = route
 
         # deleting vehicle and sensors (if they already exist)
         self.image_queues = [queue.Queue(), queue.Queue(), queue.Queue()]
@@ -125,7 +127,7 @@ class CarlaEnv:
         # spawning vehicle
         blueprint_lib = self.world.get_blueprint_library()
         vehicle_bp = blueprint_lib.filter('model3')[0]
-        vehicle_spawn_point = carla.Transform(self.spawns[self.current_path], self.rotations[self.current_path])
+        vehicle_spawn_point = carla.Transform(self.spawns[self.current_route], self.rotations[self.current_route])
         self.vehicle = self.world.spawn_actor(vehicle_bp, vehicle_spawn_point)
 
         # collision sensor
@@ -148,6 +150,7 @@ class CarlaEnv:
         camera_bp.set_attribute('image_size_x', f'{self.image_w}')
         camera_bp.set_attribute('image_size_y', f'{self.image_h}')
 
+        # 3 frontal cameras
         for i, degree in enumerate([315, 0, 45]):
             camera_spawn_point = carla.Transform(
                 carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.0 * bound_z),
@@ -183,6 +186,7 @@ class CarlaEnv:
             if not os.path.exists(sub_dir):
                 os.makedirs(sub_dir)
 
+        # generate and process the first observation
         self.world.tick()
         img_0 = self.process_image(self.image_queues[0].get())
         img_1 = self.process_image(self.image_queues[1].get())
@@ -196,9 +200,9 @@ class CarlaEnv:
         # setup agent to provide high-level commands
         self.agent = BasicAgent(self.vehicle)
         self.agent.ignore_traffic_lights(active=True)
-        self.agent.set_destination(self.dests[self.current_path])
+        self.agent.set_destination(self.dests[self.current_route])
 
-        # command: move forward
+        # initial command: move forward
         command = np.array([0.0, 1.0, 0.0])
 
         # vehicle speed
@@ -207,6 +211,10 @@ class CarlaEnv:
         return obs, command, speed
 
     def step(self, action):
+
+        # add noise to steer (used for testing robustness of agent)
+        # if random.random() < 0.15:
+        #     action[1] = 1
 
         # clipping values
         throttle = float(np.clip(action[0], 0, 1))
@@ -231,7 +239,7 @@ class CarlaEnv:
             self.save_image(image)
         self.obs_number += 1
 
-        # get high-level command from global planner
+        # get high-level command from agent's global planner
         _, road_option, num_points_done = self.agent.run_step()
 
         # lag in evaluation mode
@@ -249,9 +257,9 @@ class CarlaEnv:
         # calculate distance to destination
         location = self.vehicle.get_transform().location
         aerial_dist = math.sqrt(
-            (self.dests[self.current_path].x - location.x) ** 2
-            + (self.dests[self.current_path].y - location.y) ** 2)
-        road_dist = self.distances[self.current_path][num_points_done]
+            (self.dests[self.current_route].x - location.x) ** 2
+            + (self.dests[self.current_route].y - location.y) ** 2)
+        road_dist = self.distances[self.current_route][num_points_done]
 
         # check episode termination
         if self.obs_number == self.max_episode_steps or self.early_terminate:
@@ -277,6 +285,15 @@ class CarlaEnv:
 
         return obs, command, speed, reward, done, info
 
+    def destroy_sensors(self):
+        sensors = [*self.cameras, self.eval_camera, self.collision_sensor, self.lane_invasion_sensor]
+        for sensor in sensors:
+            if sensor is not None:
+                sensor.stop()
+                sensor.destroy()
+        if self.vehicle:
+            self.vehicle.destroy()
+
     def close(self):
         self.destroy_sensors()
         print('carla disconnected.')
@@ -299,12 +316,3 @@ class CarlaEnv:
         array = array[:, :, ::-1]
         array = array.transpose((2, 0, 1))
         return array.copy()
-
-    def destroy_sensors(self):
-        sensors = [*self.cameras, self.eval_camera, self.collision_sensor, self.lane_invasion_sensor]
-        for sensor in sensors:
-            if sensor is not None:
-                sensor.stop()
-                sensor.destroy()
-        if self.vehicle:
-            self.vehicle.destroy()

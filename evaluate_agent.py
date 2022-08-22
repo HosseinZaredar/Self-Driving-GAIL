@@ -14,12 +14,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=3)
     parser.add_argument('--agent-name', type=str, default='bc_gail_learner')
-    parser.add_argument('--record', type=lambda x: strtobool(x), default=True)
-    parser.add_argument('--use-cuda', type=bool, default=False)
-    parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
-    parser.add_argument('--deterministic', type=lambda x: strtobool(x), default=True)
-    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
-    parser.add_argument("--on-test-set", type=lambda x: bool(strtobool(x)), default=True)
+    parser.add_argument('--use-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
+    parser.add_argument('--deterministic-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
+    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
+    parser.add_argument("--on-test-set", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
     return parser.parse_args()
 
 
@@ -31,11 +29,13 @@ if __name__ == '__main__':
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+
+    # cuda setting
     torch.backends.cudnn.deterministic = args.deterministic_cuda
     torch.backends.cudnn.benchmark = True
 
     # compute device
-    device = torch.device("cuda" if torch.cuda.is_available() and args.use_cuda else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() and args.use_cuda else 'cpu')
 
     # carla env setup
     env = CarlaEnv(evaluate=True, on_test_set=args.on_test_set)
@@ -44,6 +44,7 @@ if __name__ == '__main__':
     agent = PPOAgent(args.agent_name, 3, 0, env, device, 0, None, branched=args.branched).float()
     agent.load_models()
 
+    # dataset
     if not args.on_test_set:
         num_routes = len(routes.train_spawns)
     else:
@@ -51,7 +52,7 @@ if __name__ == '__main__':
 
     for i in range(num_routes):
         done = False
-        obs, command, speed = env.reset(path=i)
+        obs, command, speed = env.reset(route=i)
 
         while not done:
             obs = torch.tensor(obs, dtype=torch.float).to(device)

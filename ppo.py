@@ -94,7 +94,7 @@ class PPOAgent(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate, eps=1e-5)
 
         # next observation and done in the environment
-        obs, command, speed = env.reset()
+        obs, command, speed = env.reset(path=0)
         self.next_obs = torch.Tensor(obs).to(device)
         self.next_command = torch.Tensor(command.copy()).to(device)
         self.next_speed = torch.Tensor([speed]).to(device)

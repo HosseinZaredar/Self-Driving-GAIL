@@ -18,9 +18,9 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--minibatch_size', type=int, default=32)
-    parser.add_argument('--use-cuda', type=bool, nargs='?', default=True)
+    parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
-    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
+    parser.add_argument("--branched", type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     return parser.parse_args()
 
 
@@ -40,6 +40,8 @@ if __name__ == '__main__':
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+
+    # cuda setup
     torch.backends.cudnn.deterministic = args.deterministic_cuda
     torch.backends.cudnn.benchmark = True
 
@@ -91,7 +93,7 @@ if __name__ == '__main__':
 
     for epoch in range(1, args.max_epochs + 1):
 
-        if epoch % 50 == 0:
+        if epoch % 10 == 0:
             agent.save_models()
 
         batch_starts_train = np.arange(0, len(expert_states_train), args.minibatch_size)

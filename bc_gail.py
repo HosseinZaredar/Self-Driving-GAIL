@@ -21,12 +21,11 @@ def parse_args():
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
     parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--total_timesteps', type=int, default=150_000)
+    parser.add_argument('--total_timesteps', type=int, default=90_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument('--num-steps', type=int, default=512,
                         help='number of steps in each environment before training')
-    parser.add_argument('--anneal-lr', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument("--gamma", type=float, default=0.99, help="the discount factor gamma")
     parser.add_argument("--gae-lambda", type=float, default=0.95,
                         help="the lambda for the general advantage estimation")
@@ -41,12 +40,12 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-epochs", type=int, default=3)
+    parser.add_argument("--num-disc-epochs", type=int, default=4)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
-    parser.add_argument("--half-life", type=int, default=150)
-    parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), default=False)
-    parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), default=False)
-    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), default=True)
+    parser.add_argument("--half-life", type=int, default=120)
+    parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
+    parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
+    parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
 
     args = parser.parse_args()
     args.batch_size = args.num_steps
@@ -71,7 +70,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         self.wasserstein = wasserstein
         self.bce_loss = nn.BCEWithLogitsLoss()
 
-        self.cnn = CNNBackbone(n_channels=9, dropout=False)
+        self.cnn = CNNBackbone(n_channels=9)
         if self.branched:
             self.disc = nn.Linear(512+1+num_actions, 3)
         else:
@@ -94,16 +93,14 @@ class Discriminator(nn.Module):  # Discriminator Network
             pred = self.disc(disc_inp)
         return pred
 
-    # gradient penalty
+    # gradient penalty (only works with single-branched architecture)
     def compute_grad_pen(self, expert_states, expert_commands, expert_speeds, expert_actions,
                          agent_states, agent_commands, agent_speeds, agent_actions, lambda_=10):
 
         alpha = torch.rand(expert_states.size(0), 1)
 
-        # Change state values
         exp_cnn_out = self.cnn(expert_states)
         agt_cnn_out = self.cnn(agent_states)
-
         expert_data = torch.cat([exp_cnn_out, expert_commands, expert_speeds, expert_actions], dim=1)
         policy_data = torch.cat([agt_cnn_out, agent_commands, agent_speeds, agent_actions], dim=1)
         alpha = alpha.expand_as(expert_data).to(expert_data.device)
@@ -163,6 +160,7 @@ class Discriminator(nn.Module):  # Discriminator Network
             if self.wasserstein:
                 raw_disc_loss = -(expert_preds.mean() - agent_preds.mean())
             else:
+
                 # real and fake labels (1s and 0s)
                 real_labels = torch.ones(expert_states_batch.shape[0]).to(self.device)
                 fake_labels = torch.zeros(agent_states_batch.shape[0]).to(self.device)
@@ -202,7 +200,6 @@ class Discriminator(nn.Module):  # Discriminator Network
         with torch.no_grad():
             probs = torch.sigmoid(self.forward(agent_states, agent_commands, agent_speeds, agent_actions))
             clamped_probs = torch.clamp(probs, min=0.01, max=0.99)
-            # rewards = torch.log(clamped_probs) - torch.log(1 - clamped_probs)
             rewards = - torch.log(1 - clamped_probs)
         return rewards.squeeze()
 
@@ -284,13 +281,8 @@ if __name__ == '__main__':
 
     for update in range(1, num_updates + 1):
 
+        # save the agent model
         agent.save_models()
-
-        # annealing the rate if instructed to do so
-        if args.anneal_lr:
-            frac = 1.0 - (update - 1.0) / num_updates
-            lrnow = frac * args.learning_rate
-            agent.optimizer.param_groups[0]['lr'] = lrnow
 
         # rollout agent
         global_step = agent.rollout(global_step)
@@ -301,10 +293,10 @@ if __name__ == '__main__':
                 expert_states, expert_commands, expert_speeds, expert_actions,
                 agent.obs, agent.commands, agent.speeds, agent.actions)
 
-        # calculate rewards
+        # calculate rewards from the discriminator
         agent.rewards += disc.generate_rewards(agent.obs, agent.commands, agent.speeds, agent.actions)
 
-        # calculate episodic return (for debugging purposes)
+        # calculate episodic return (for logging/debugging purposes)
         returns = agent.calc_returns(global_step - args.num_steps)
         for r in returns:
             writer.add_scalar("charts/episodic_return_disc", r[1], r[0])
