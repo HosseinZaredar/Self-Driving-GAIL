@@ -135,6 +135,7 @@ if __name__ == '__main__':
         # update discriminator
         for _ in range(args.num_disc_epochs):
             disc_real_loss, disc_fake_loss, disc_raw_loss, disc_loss = disc.learn(
+                args.num_steps // args.num_disc_minibatches,
                 expert_states, expert_commands, expert_speeds, expert_actions,
                 agent.obs, agent.commands, agent.speeds, agent.actions)
 

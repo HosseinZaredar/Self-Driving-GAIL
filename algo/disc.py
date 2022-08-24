@@ -73,7 +73,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         grad_pen = lambda_ * (grad.norm(2, dim=1) - 1).pow(2).mean()
         return grad_pen
 
-    def learn(self, expert_states, expert_commands, expert_speeds, expert_actions,
+    def learn(self, disc_batch_size, expert_states, expert_commands, expert_speeds, expert_actions,
               agent_states, agent_commands, agent_speeds, agent_actions):
 
         n_states = agent_states.shape[0]
@@ -89,7 +89,6 @@ class Discriminator(nn.Module):  # Discriminator Network
         expert_actions_sample = torch.from_numpy(expert_actions_sample)
 
         # creating mini-batches
-        disc_batch_size = n_states // args.num_disc_minibatches
         batch_starts = np.arange(0, n_states, disc_batch_size)
 
         mean_real_loss = 0
