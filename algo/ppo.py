@@ -1,4 +1,4 @@
-from cnn_backbone import CNNBackbone
+from algo.cnn_backbone import CNNBackbone
 
 import os
 import numpy as np
@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
 import torch.optim as optim
+from pathlib import Path
 
 
 # layer initialization
@@ -94,7 +95,7 @@ class PPOAgent(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate, eps=1e-5)
 
         # next observation and done in the environment
-        obs, command, speed = env.reset(path=0)
+        obs, command, speed = env.reset(route=0)
         self.next_obs = torch.Tensor(obs).to(device)
         self.next_command = torch.Tensor(command.copy()).to(device)
         self.next_speed = torch.Tensor([speed]).to(device)
@@ -114,17 +115,15 @@ class PPOAgent(nn.Module):
 
         self.to(device)
 
-        checkpoint_dir = 'checkpoints'
+        checkpoint_dir = os.path.join(Path(__file__).parent.parent, 'checkpoints')
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
-        self.checkpoint_file = os.path.join('checkpoints', agent_name)
+        self.checkpoint_file = os.path.join(checkpoint_dir, f'{agent_name}_agent')
 
     def get_action_and_value(self, x, command, speed, action=None, deterministic=False):
         cnn_out = self.cnn(x)
         action_mean, action_logstd = self.actor(cnn_out, command, speed)
         value = self.critic(cnn_out, command, speed)
-
-        # action_logstd = torch.tensor(-3.2).expand_as(action_logstd).to(self.device)
         action_std = torch.exp(action_logstd)
         probs = Normal(action_mean, action_std)
         if action is None:

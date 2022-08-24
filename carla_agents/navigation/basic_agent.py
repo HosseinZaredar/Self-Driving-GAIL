@@ -12,9 +12,9 @@ It can also make use of the global route planner to follow a specifed route
 import carla
 from enum import Enum
 
-from agents.navigation.local_planner import LocalPlanner
-from agents.navigation.global_route_planner import GlobalRoutePlanner
-from agents.tools.misc import get_speed, is_within_distance, get_trafficlight_trigger_location
+from carla_agents.navigation.local_planner import LocalPlanner
+from carla_agents.navigation.global_route_planner import GlobalRoutePlanner
+from carla_agents.tools.misc import get_speed, is_within_distance, get_trafficlight_trigger_location
 
 
 class BasicAgent(object):

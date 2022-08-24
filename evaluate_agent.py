@@ -1,6 +1,6 @@
-from env import CarlaEnv
-from ppo import PPOAgent
-import routes
+from env.env import CarlaEnv
+from env import routes
+from algo.ppo import PPOAgent
 
 import numpy as np
 import random
@@ -13,7 +13,7 @@ import torch
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=3)
-    parser.add_argument('--agent-name', type=str, default='bc_gail_learner')
+    parser.add_argument('--agent-name', type=str, default='bc_gail_agent')
     parser.add_argument('--use-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
@@ -42,6 +42,7 @@ if __name__ == '__main__':
 
     # initializing and loading agent
     agent = PPOAgent(args.agent_name, 3, 0, env, device, 0, None, branched=args.branched).float()
+    print('.... loading models ....')
     agent.load_models()
 
     # dataset

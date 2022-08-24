@@ -1,5 +1,5 @@
-from env import CarlaEnv
-from ppo import PPOAgent
+from env.env import CarlaEnv
+from algo.ppo import PPOAgent
 
 import os
 import torch
@@ -52,32 +52,38 @@ if __name__ == '__main__':
     env = CarlaEnv()
 
     # load expert trajectories
-    expert_states = []
-    expert_commands = []
-    expert_speeds = []
-    expert_actions = []
+    print('loading data...')
+
+    total_length = 0
     for dir in os.listdir('expert_data'):
-        expert_states.append(np.load(os.path.join('expert_data', dir, 'expert_states.npy')))
-        expert_commands.append(np.load(os.path.join('expert_data', dir, 'expert_commands.npy')))
-        expert_speeds.append(np.load(os.path.join('expert_data', dir, 'expert_speeds.npy')))
-        expert_actions.append(np.load(os.path.join('expert_data', dir, 'expert_actions.npy')))
+        with open(os.path.join('expert_data', dir, 'len.txt')) as f:
+            total_length += int(f.readline())
 
-    expert_states = np.concatenate(expert_states)
-    expert_commands = np.concatenate(expert_commands)
-    expert_speeds = np.concatenate(expert_speeds)
-    expert_actions = np.concatenate(expert_actions)
+    expert_states = np.empty((total_length, 9, 144, 256), dtype=np.float32)
+    expert_commands = np.empty((total_length, 3), dtype=np.float32)
+    expert_speeds = np.empty((total_length, 1), dtype=np.float32)
+    expert_actions = np.empty((total_length, 3), dtype=np.float32)
 
-    # shuffle expert data
-    num_states = len(expert_states)
-    indices = np.arange(0, num_states)
-    np.random.shuffle(indices)
-    expert_states = expert_states[indices]
-    expert_commands = expert_commands[indices]
-    expert_speeds = expert_speeds[indices]
-    expert_actions = expert_actions[indices]
+    loaded_length = 0
+    for dir in os.listdir('expert_data'):
+        np_states = np.load(os.path.join('expert_data', dir, 'expert_states.npy'))
+        np_commands = np.load(os.path.join('expert_data', dir, 'expert_commands.npy'))
+        np_speeds = np.load(os.path.join('expert_data', dir, 'expert_speeds.npy'))
+        np_actions = np.load(os.path.join('expert_data', dir, 'expert_actions.npy'))
+
+        episode_length = np_states.shape[0]
+        expert_states[loaded_length: loaded_length + episode_length] = np_states
+        expert_commands[loaded_length: loaded_length + episode_length] = np_commands
+        expert_speeds[loaded_length: loaded_length + episode_length] = np_speeds
+        expert_actions[loaded_length: loaded_length + episode_length] = np_actions
+
+        loaded_length += episode_length
+
+    print('data loaded!')
 
     # train-validation split
     ratio = 0.8
+    num_states = len(expert_states)
     expert_states_train = expert_states[: int(ratio * num_states)]
     expert_commands_train = expert_commands[: int(ratio * num_states)]
     expert_speeds_train = expert_speeds[: int(ratio * num_states)]
@@ -88,12 +94,12 @@ if __name__ == '__main__':
     expert_actions_val = expert_actions[int(ratio * num_states):]
 
     # initialize ppo agent
-    agent = PPOAgent('bc_learner', 3, args.learning_rate, env, device, 0,
-                     writer, branched=args.branched).float()
+    agent = PPOAgent('bc', 3, args.learning_rate, env, device, 0, writer, branched=args.branched).float()
 
     for epoch in range(1, args.max_epochs + 1):
 
         if epoch % 10 == 0:
+            print('.... saving models ....')
             agent.save_models()
 
         batch_starts_train = np.arange(0, len(expert_states_train), args.minibatch_size)
@@ -143,7 +149,6 @@ if __name__ == '__main__':
 
         # deterministic evaluation in the environment
         if epoch % 2 == 0:
-            agent.save_models()
 
             with torch.no_grad():
                 done = False

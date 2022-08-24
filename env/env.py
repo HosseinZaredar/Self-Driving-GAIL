@@ -1,25 +1,23 @@
-import routes
+from env import routes
 
 import math
 import os
-import random
 import queue
 import numpy as np
 import matplotlib.pyplot as plt
 
 import carla
-from agents.navigation.basic_agent import BasicAgent
-from agents.navigation.local_planner import RoadOption
-from agents.navigation.global_route_planner import GlobalRoutePlanner
+from carla_agents.navigation.basic_agent import BasicAgent
+from carla_agents.navigation.local_planner import RoadOption
+from carla_agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaEnv:
-    def __init__(self, world='Town02', fps=10, image_w=256, image_h=144, random_spawn=False,
+    def __init__(self, world='Town02', fps=10, image_w=256, image_h=144,
                  evaluate=False, on_test_set=False, eval_image_w=1280, eval_image_h=720):
 
         self.image_w = image_w
         self.image_h = image_h
-        self.random_spawn = random_spawn
         self.evaluate = evaluate
         self.eval_image_w = eval_image_w
         self.eval_image_h = eval_image_h
@@ -90,7 +88,7 @@ class CarlaEnv:
 
         # recording directory
         if self.evaluate:
-            main_dir = 'agent_rollout'
+            main_dir = '../agent_rollout'
             if not os.path.exists(main_dir):
                 os.makedirs(main_dir)
             self.dir = os.path.join(main_dir, 'train' if not self.on_test_set else 'test')

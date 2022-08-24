@@ -6,12 +6,11 @@
     P            : toggle autopilot
 """
 
-
-import routes
+from env import routes
 
 import carla
-from agents.navigation.basic_agent import BasicAgent
-from agents.navigation.local_planner import RoadOption
+from carla_agents.navigation.basic_agent import BasicAgent
+from carla_agents.navigation.local_planner import RoadOption
 
 import queue
 import os
