@@ -1,4 +1,4 @@
-from algo.cnn_backbone import CNNBackbone
+from algo.cnn import CNN
 
 import os
 import numpy as np
@@ -87,7 +87,7 @@ class PPOAgent(nn.Module):
         self.env = env
 
         # networks
-        self.cnn = CNNBackbone(n_channels=n_channels)
+        self.cnn = CNN(n_channels=n_channels)
         self.actor = Actor(env, num_actions, branched=branched)
         self.critic = Critic(branched=branched)
 
@@ -128,7 +128,7 @@ class PPOAgent(nn.Module):
         probs = Normal(action_mean, action_std)
         if action is None:
             if deterministic:
-                action = action_mean.clone().detach()
+                action = action_mean
             else:
                 action = probs.sample()
         return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), value
@@ -289,9 +289,7 @@ class PPOAgent(nn.Module):
         return v_loss, pg_loss, bc_loss, full_pg_loss, entropy_loss
 
     def save_models(self):
-        print('.... saving models ....')
         torch.save(self.state_dict(), self.checkpoint_file)
 
     def load_models(self):
-        print('.... loading models ....')
         self.load_state_dict(torch.load(self.checkpoint_file, map_location=self.device))

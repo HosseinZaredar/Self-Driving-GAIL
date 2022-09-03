@@ -88,7 +88,7 @@ class CarlaEnv:
 
         # recording directory
         if self.evaluate:
-            main_dir = '../agent_rollout'
+            main_dir = 'agent_rollout'
             if not os.path.exists(main_dir):
                 os.makedirs(main_dir)
             self.dir = os.path.join(main_dir, 'train' if not self.on_test_set else 'test')
@@ -158,7 +158,8 @@ class CarlaEnv:
                 camera_bp,
                 camera_spawn_point,
                 attach_to=self.vehicle,
-                attachment_type=carla.AttachmentType.Rigid))
+                attachment_type=carla.AttachmentType.Rigid)
+            )
 
             self.cameras[i].listen(self.image_queues[i].put)
 
@@ -169,12 +170,14 @@ class CarlaEnv:
             camera_bp.set_attribute('image_size_y', f'{self.eval_image_h}')
             camera_spawn_point = carla.Transform(
                 carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z),
-                carla.Rotation(pitch=8.0))
+                carla.Rotation(pitch=8.0)
+            )
             self.eval_camera = self.world.spawn_actor(
                 camera_bp,
                 camera_spawn_point,
                 attach_to=self.vehicle,
-                attachment_type=carla.AttachmentType.SpringArm)
+                attachment_type=carla.AttachmentType.SpringArm
+            )
 
             self.eval_camera.listen(self.eval_image_queue.put)
 
@@ -194,6 +197,7 @@ class CarlaEnv:
         if self.evaluate and self.episode_number != -1:
             image = self.process_image(self.eval_image_queue.get())
             self.save_image(image)
+
 
         # setup agent to provide high-level commands
         self.agent = BasicAgent(self.vehicle)

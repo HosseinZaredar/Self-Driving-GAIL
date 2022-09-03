@@ -19,9 +19,9 @@ class Scale(nn.Module):
         return x * self.scale
 
 
-class CNNBackbone(nn.Module):
+class CNN(nn.Module):
     def __init__(self, n_channels, dropout=False):
-        super(CNNBackbone, self).__init__()
+        super(CNN, self).__init__()
         self.conv = nn.Sequential(
             Scale(1 / 255),
             layer_init(nn.Conv2d(in_channels=n_channels, out_channels=32, kernel_size=4, stride=2)),
