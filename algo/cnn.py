@@ -24,50 +24,16 @@ class CNN(nn.Module):
         super(CNN, self).__init__()
         self.conv1 = nn.Sequential(
             Scale(1 / 255),
-            layer_init(nn.Conv2d(in_channels=n_channels//3, out_channels=32, kernel_size=4, stride=2)),
+            layer_init(nn.Conv2d(in_channels=n_channels, out_channels=3*32, kernel_size=4, stride=2, groups=3)),
             nn.LeakyReLU(),
             nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)),
+            layer_init(nn.Conv2d(in_channels=3*32, out_channels=3*64, kernel_size=4, stride=2, groups=3)),
             nn.LeakyReLU(),
             nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2)),
+            layer_init(nn.Conv2d(in_channels=3*64, out_channels=3*128, kernel_size=4, stride=2, groups=3)),
             nn.LeakyReLU(),
             nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Flatten(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-        )
-
-        self.conv2 = nn.Sequential(
-            Scale(1 / 255),
-            layer_init(nn.Conv2d(in_channels=n_channels//3, out_channels=32, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Flatten(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-        )
-
-        self.conv3 = nn.Sequential(
-            Scale(1 / 255),
-            layer_init(nn.Conv2d(in_channels=n_channels//3, out_channels=32, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2)),
-            nn.LeakyReLU(),
-            nn.Dropout(0.3) if dropout else nn.Identity(),
-            layer_init(nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2)),
+            layer_init(nn.Conv2d(in_channels=3*128, out_channels=3*256, kernel_size=4, stride=2, groups=3)),
             nn.LeakyReLU(),
             nn.Flatten(),
             nn.Dropout(0.3) if dropout else nn.Identity(),
@@ -86,7 +52,4 @@ class CNN(nn.Module):
         )
 
     def forward(self, x):
-        c1 = self.conv1(x[:, 0:3])
-        c2 = self.conv2(x[:, 3:6])
-        c3 = self.conv3(x[:, 6:9])
-        return self.fc(torch.cat([c1, c2, c3], dim=1))
+        return self.fc(self.conv(x))
