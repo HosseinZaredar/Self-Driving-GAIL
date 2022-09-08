@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument('--deterministic', type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
     parser.add_argument("--on-test-set", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
-    parser.add_argument("--generate-saliency", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
+    parser.add_argument("--generate-saliency", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     return parser.parse_args()
 
 

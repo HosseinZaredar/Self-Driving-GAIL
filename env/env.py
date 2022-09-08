@@ -209,7 +209,6 @@ class CarlaEnv:
             image = self.process_image(self.eval_image_queue.get())
             self.save_image(image)
 
-
         # setup agent to provide high-level commands
         self.agent = BasicAgent(self.vehicle)
         self.agent.ignore_traffic_lights(active=True)
@@ -295,6 +294,8 @@ class CarlaEnv:
         # vehicle speed
         v = self.vehicle.get_velocity()
         speed = math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)
+
+        # print(self.obs_number, command)
 
         return obs, command, speed, reward, done, info
 

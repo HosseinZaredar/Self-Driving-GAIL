@@ -262,7 +262,18 @@ class LocalPlanner(object):
 
         num_points_done = self.num_waypoints - len(self._waypoints_queue)
 
-        return control, self.target_road_option, num_points_done
+        # calculate high-level command
+        lead_step = 3
+        if len(self._waypoints_queue) > lead_step:
+            _, lead_command = self._waypoints_queue[lead_step]
+            if lead_command == RoadOption.LEFT or lead_command == RoadOption.RIGHT:
+                command = lead_command
+            else:
+                command = self.target_road_option
+        else:
+            command = self.target_road_option
+
+        return control, command, num_points_done
 
     def get_incoming_waypoint_and_direction(self, steps=3):
         """
