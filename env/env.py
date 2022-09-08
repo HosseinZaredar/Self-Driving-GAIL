@@ -1,3 +1,6 @@
+import random
+import re
+
 from env import routes
 
 import math
@@ -14,7 +17,7 @@ from carla_agents.navigation.global_route_planner import GlobalRoutePlanner
 
 class CarlaEnv:
     def __init__(self, world='Town02', fps=10, image_w=256, image_h=144,
-                 evaluate=False, on_test_set=False, eval_image_w=1280, eval_image_h=720):
+                 evaluate=False, on_test_set=False, eval_image_w=512, eval_image_h=288):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -51,6 +54,14 @@ class CarlaEnv:
         self.world = self.client.load_world(world)
         print('carla connected.')
 
+        # set weather
+        rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
+        name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
+        presets = [x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)]
+        presets = [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
+        self.world.set_weather(presets[6][0])
+
+        # fps settings
         settings = self.world.get_settings()
         settings.synchronous_mode = True
         settings.fixed_delta_seconds = 1 / fps
@@ -215,8 +226,8 @@ class CarlaEnv:
     def step(self, action):
 
         # add noise to steer (used for testing robustness of agent)
-        # if random.random() < 0.15:
-        #     action[1] = 1
+        # if random.random() < 0.5:
+        #     action[1] += 0.2
 
         # clipping values
         throttle = float(np.clip(action[0], 0, 1))

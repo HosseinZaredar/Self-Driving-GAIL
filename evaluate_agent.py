@@ -91,7 +91,7 @@ if __name__ == '__main__':
     else:
         obs_requires_grad = False
 
-    for i in range(4, num_routes):
+    for i in range(num_routes):
         done = False
         obs, command, speed = env.reset(route=i)
 
@@ -110,10 +110,11 @@ if __name__ == '__main__':
                 obs.unsqueeze(0), command.unsqueeze(0), speed.unsqueeze(0), deterministic=args.deterministic)
 
             # generate and save saliency maps
-            action[0][1].backward()
-            slc, _ = torch.max(torch.abs(obs.grad[3:6]), dim=0)
-            slc = (slc - slc.min()) / (slc.max() - slc.min())
-            plt.imsave(os.path.join(saliency_dir, f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
+            if args.generate_saliency:
+                action[0][1].backward()
+                slc, _ = torch.max(torch.abs(obs.grad[6:9]), dim=0)
+                slc = (slc - slc.min()) / (slc.max() - slc.min())
+                plt.imsave(os.path.join(saliency_dir, f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
 
             # perform action
             action = action.clone().detach()
@@ -122,7 +123,5 @@ if __name__ == '__main__':
 
             if done:
                 print(f'route {i:02}: {info}')
-
-        break
 
     env.close()
