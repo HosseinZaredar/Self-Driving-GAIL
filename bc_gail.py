@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
     parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--total_timesteps', type=int, default=85_000)
+    parser.add_argument('--total_timesteps', type=int, default=150_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: strtobool(x), nargs='?', default=False, const=True)
     parser.add_argument('--num-steps', type=int, default=512,
@@ -37,9 +37,9 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-epochs", type=int, default=4)
+    parser.add_argument("--num-disc-epochs", type=int, default=1)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
-    parser.add_argument("--half-life", type=int, default=120)
+    parser.add_argument("--half-life", type=int, default=160)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         global_step = agent.rollout(global_step)
 
         # update discriminator
-        for _ in range(args.num_disc_epochs):
+        for _ in range(args.num_disc_epochs if global_step > 10_000 else 2):
             disc_real_loss, disc_fake_loss, disc_raw_loss, disc_loss = disc.learn(
                 args.num_steps // args.num_disc_minibatches,
                 expert_states, expert_commands, expert_speeds, expert_actions,
