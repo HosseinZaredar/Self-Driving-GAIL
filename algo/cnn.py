@@ -39,7 +39,7 @@ class CNN(nn.Module):
             nn.Dropout(0.3) if dropout else nn.Identity(),
         )
 
-        W, H = 256, 144
+        W, H = 256, 112
         for i in range(4):
             W = (W - 4) // 2 + 1
             H = (H - 4) // 2 + 1

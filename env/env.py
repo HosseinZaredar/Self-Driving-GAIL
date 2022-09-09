@@ -16,8 +16,8 @@ from carla_agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 class CarlaEnv:
-    def __init__(self, world='Town02', fps=10, image_w=256, image_h=144,
-                 evaluate=False, on_test_set=False, eval_image_w=512, eval_image_h=288):
+    def __init__(self, world='Town02', fps=10, image_w=256, image_h=112,
+                 evaluate=False, on_test_set=False, eval_image_w=256, eval_image_h=112):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -26,7 +26,7 @@ class CarlaEnv:
         self.eval_image_h = eval_image_h
 
         # episode variables
-        self.max_episode_steps = 135 if not evaluate else 600
+        self.max_episode_steps = 140 if not evaluate else 600
         self.episode_number = -2
         self.obs_number = 0
         self.current_route = 0
@@ -150,29 +150,44 @@ class CarlaEnv:
         self.lane_invasion_sensor.listen(lambda event: self.invade())
 
         # setting up main cameras
+        bound_x = self.vehicle.bounding_box.extent.x
+        bound_y = self.vehicle.bounding_box.extent.y
+        bound_z = self.vehicle.bounding_box.extent.z
+
+        # left camera
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
-
-        bound_x = 0.5 + self.vehicle.bounding_box.extent.x
-        bound_y = 0.5 + self.vehicle.bounding_box.extent.y
-        bound_z = 0.5 + self.vehicle.bounding_box.extent.z
-
         camera_bp.set_attribute('image_size_x', f'{self.image_w}')
         camera_bp.set_attribute('image_size_y', f'{self.image_h}')
+        camera_bp.set_attribute('fov', str(120))
+        camera_spawn_point = carla.Transform(
+            carla.Location(x=-0.2 * bound_x, y=-bound_y, z=0.4 * (0.5 + bound_z)),
+            carla.Rotation(yaw=295, pitch=-20))
+        self.cameras.append(self.world.spawn_actor(camera_bp, camera_spawn_point, attach_to=self.vehicle,
+                                                   attachment_type=carla.AttachmentType.Rigid))
+        self.cameras[0].listen(self.image_queues[0].put)
 
-        # 3 frontal cameras
-        for i, degree in enumerate([315, 0, 45]):
-            camera_spawn_point = carla.Transform(
-                carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.0 * bound_z),
-                carla.Rotation(yaw=degree)
-            )
-            self.cameras.append(self.world.spawn_actor(
-                camera_bp,
-                camera_spawn_point,
-                attach_to=self.vehicle,
-                attachment_type=carla.AttachmentType.Rigid)
-            )
+        # front camera
+        camera_bp = blueprint_lib.find('sensor.camera.rgb')
+        camera_bp.set_attribute('image_size_x', f'{self.image_w}')
+        camera_bp.set_attribute('image_size_y', f'{self.image_h}')
+        camera_spawn_point = carla.Transform(
+            carla.Location(x=0.5 + bound_x, y=0.0, z=0.5 + bound_z),
+            carla.Rotation(pitch=-15))
+        self.cameras.append(self.world.spawn_actor(camera_bp, camera_spawn_point, attach_to=self.vehicle,
+                                                   attachment_type=carla.AttachmentType.Rigid))
+        self.cameras[1].listen(self.image_queues[1].put)
 
-            self.cameras[i].listen(self.image_queues[i].put)
+        # right camera
+        camera_bp = blueprint_lib.find('sensor.camera.rgb')
+        camera_bp.set_attribute('image_size_x', f'{self.image_w}')
+        camera_bp.set_attribute('image_size_y', f'{self.image_h}')
+        camera_bp.set_attribute('fov', str(120))
+        camera_spawn_point = carla.Transform(
+            carla.Location(x=-0.2 * bound_x, y=bound_y, z=0.4 * (0.5 + bound_z)),
+            carla.Rotation(yaw=65, pitch=-20))
+        self.cameras.append(self.world.spawn_actor(camera_bp, camera_spawn_point, attach_to=self.vehicle,
+                                                   attachment_type=carla.AttachmentType.Rigid))
+        self.cameras[2].listen(self.image_queues[2].put)
 
         # setting up evaluation camera
         if self.evaluate:

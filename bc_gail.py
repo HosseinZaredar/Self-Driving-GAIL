@@ -84,7 +84,7 @@ if __name__ == '__main__':
         with open(os.path.join('expert_data', dir, 'len.txt')) as f:
             total_length += int(f.readline())
 
-    expert_states = np.empty((total_length, 9, 144, 256), dtype=np.float32)
+    expert_states = np.empty((total_length, 9, 112, 256), dtype=np.float32)
     expert_commands = np.empty((total_length, 3), dtype=np.float32)
     expert_speeds = np.empty((total_length, 1), dtype=np.float32)
     expert_actions = np.empty((total_length, 3), dtype=np.float32)
@@ -125,9 +125,10 @@ if __name__ == '__main__':
     for update in range(1, num_updates + 1):
 
         # save the agent model
-        print('.... saving models ....')
-        agent.save_models()
-        disc.save_models()
+        if update % 5 == 0:
+            print('.... saving models ....')
+            agent.save_models()
+            disc.save_models()
 
         # rollout agent
         global_step = agent.rollout(global_step)

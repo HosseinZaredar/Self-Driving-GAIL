@@ -345,27 +345,46 @@ class CameraManager(object):
 
         world = self._parent.get_world()
         blueprint_lib = world.get_blueprint_library()
+
+        # vehicle bounding boxes
+        bound_x = self._parent.bounding_box.extent.x
+        bound_y = self._parent.bounding_box.extent.y
+        bound_z = self._parent.bounding_box.extent.z
+
+        # left camera
         camera_bp = blueprint_lib.find('sensor.camera.rgb')
-
-        bound_x = 0.5 + self._parent.bounding_box.extent.x
-        bound_y = 0.5 + self._parent.bounding_box.extent.y
-        bound_z = 0.5 + self._parent.bounding_box.extent.z
-
         camera_bp.set_attribute('image_size_x', str(hud.dim[0]))
         camera_bp.set_attribute('image_size_y', str(hud.dim[1]))
+        camera_bp.set_attribute('fov', str(120))
+        camera_spawn_point = carla.Transform(
+            carla.Location(x=-0.2*bound_x, y=-bound_y, z=0.4 * (0.5 + bound_z)),
+            carla.Rotation(yaw=295, pitch=-20))
+        self.cameras.append(world.spawn_actor(camera_bp, camera_spawn_point, attach_to=self._parent,
+                                              attachment_type=carla.AttachmentType.Rigid))
+        self.cameras[0].listen(self.image_queues[0].put)
 
-        for i, degree in enumerate([315, 0, 45]):
-            camera_spawn_point = carla.Transform(
-                carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.0 * bound_z),
-                carla.Rotation(yaw=degree)
-            )
-            self.cameras.append(world.spawn_actor(
-                camera_bp,
-                camera_spawn_point,
-                attach_to=self._parent,
-                attachment_type=carla.AttachmentType.Rigid))
+        # front camera
+        camera_bp = blueprint_lib.find('sensor.camera.rgb')
+        camera_bp.set_attribute('image_size_x', str(hud.dim[0]))
+        camera_bp.set_attribute('image_size_y', str(hud.dim[1]))
+        camera_spawn_point = carla.Transform(
+            carla.Location(x=0.5 + bound_x, y=0.0, z=0.5 + bound_z),
+            carla.Rotation(pitch=-15))
+        self.cameras.append(world.spawn_actor(camera_bp, camera_spawn_point, attach_to=self._parent,
+                                              attachment_type=carla.AttachmentType.Rigid))
+        self.cameras[1].listen(self.image_queues[1].put)
 
-            self.cameras[i].listen(self.image_queues[i].put)
+        # right camera
+        camera_bp = blueprint_lib.find('sensor.camera.rgb')
+        camera_bp.set_attribute('image_size_x', str(hud.dim[0]))
+        camera_bp.set_attribute('image_size_y', str(hud.dim[1]))
+        camera_bp.set_attribute('fov', str(120))
+        camera_spawn_point = carla.Transform(
+            carla.Location(x=-0.2*bound_x, y=bound_y, z=0.4 * (0.5 + bound_z)),
+            carla.Rotation(yaw=65, pitch=-20))
+        self.cameras.append(world.spawn_actor(camera_bp, camera_spawn_point, attach_to=self._parent,
+                                              attachment_type=carla.AttachmentType.Rigid))
+        self.cameras[2].listen(self.image_queues[2].put)
 
     def tick(self):
         img_0 = self._parse_image(self.image_queues[0].get())
@@ -480,7 +499,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--host', metavar='H', default='127.0.0.1', help='IP of the host server (default: 127.0.0.1)')
     parser.add_argument('-p', '--port', metavar='P', default=2000, type=int, help='server TCP port (default: 2000)')
-    parser.add_argument('--res', metavar='WIDTHxHEIGHT', default='256x144', help='window and camera resolution')
+    parser.add_argument('--res', metavar='WIDTHxHEIGHT', default='256x112', help='window and camera resolution')
     parser.add_argument('--vehicle', default='model3', help='vehicle name')
     parser.add_argument('--map', default='Town02_Opt', help='map name')
     parser.add_argument('--fps', default=30)

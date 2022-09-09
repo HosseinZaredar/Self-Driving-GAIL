@@ -80,6 +80,8 @@ class LocalPlanner(object):
         self._base_min_distance = 1.0
         self._follow_speed_limits = False
 
+        self.lead_step = 4
+
         # Overload parameters
         if opt_dict:
             if 'dt' in opt_dict:
@@ -263,7 +265,7 @@ class LocalPlanner(object):
         num_points_done = self.num_waypoints - len(self._waypoints_queue)
 
         # calculate high-level command
-        lead_step = 3
+        lead_step = self.lead_step
         if len(self._waypoints_queue) > lead_step:
             _, lead_command = self._waypoints_queue[lead_step]
             if lead_command == RoadOption.LEFT or lead_command == RoadOption.RIGHT:

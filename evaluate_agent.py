@@ -91,7 +91,7 @@ if __name__ == '__main__':
     else:
         obs_requires_grad = False
 
-    for i in range(num_routes):
+    for i in range(0, num_routes):
         done = False
         obs, command, speed = env.reset(route=i)
 
@@ -99,6 +99,10 @@ if __name__ == '__main__':
             saliency_dir = os.path.join(save_dir, f'ep_{i}', 'saliency')
             if not os.path.exists(saliency_dir):
                 os.makedirs(saliency_dir)
+            if not os.path.exists(os.path.join(saliency_dir, 'right')):
+                os.makedirs(os.path.join(saliency_dir, 'right'))
+            if not os.path.exists(os.path.join(saliency_dir, 'left')):
+                os.makedirs(os.path.join(saliency_dir, 'left'))
 
         step_number = -1
         while not done:
@@ -112,9 +116,16 @@ if __name__ == '__main__':
             # generate and save saliency maps
             if args.generate_saliency:
                 action[0][1].backward()
+
+                # left camera
+                slc, _ = torch.max(torch.abs(obs.grad[0:3]), dim=0)
+                slc = (slc - slc.min()) / (slc.max() - slc.min())
+                plt.imsave(os.path.join(saliency_dir, 'left', f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
+
+                # right camera
                 slc, _ = torch.max(torch.abs(obs.grad[6:9]), dim=0)
                 slc = (slc - slc.min()) / (slc.max() - slc.min())
-                plt.imsave(os.path.join(saliency_dir, f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
+                plt.imsave(os.path.join(saliency_dir, 'right', f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
 
             # perform action
             action = action.clone().detach()
