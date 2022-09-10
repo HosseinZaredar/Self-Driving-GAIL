@@ -17,7 +17,7 @@ from carla_agents.navigation.global_route_planner import GlobalRoutePlanner
 
 class CarlaEnv:
     def __init__(self, world='Town02', fps=10, image_w=256, image_h=112,
-                 evaluate=False, on_test_set=False, eval_image_w=256, eval_image_h=112):
+                 evaluate=False, on_test_set=False, eval_image_w=256, eval_image_h=144):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -94,7 +94,7 @@ class CarlaEnv:
 
         # lagging commands in evaluation mode
         if evaluate:
-            self.command_lag = 5
+            self.command_lag = 1
             self.commands = [RoadOption.LANEFOLLOW for _ in range(self.command_lag)]
 
         # recording directory
@@ -195,7 +195,7 @@ class CarlaEnv:
             camera_bp.set_attribute('image_size_x', f'{self.eval_image_w}')
             camera_bp.set_attribute('image_size_y', f'{self.eval_image_h}')
             camera_spawn_point = carla.Transform(
-                carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z),
+                carla.Location(x=-2.0*(0.5+bound_x), y=0.0, z=2.0*(0.5+bound_z)),
                 carla.Rotation(pitch=8.0)
             )
             self.eval_camera = self.world.spawn_actor(
@@ -270,9 +270,9 @@ class CarlaEnv:
         _, road_option, num_points_done = self.agent.run_step()
 
         # lag in evaluation mode
-        if self.evaluate:
-            self.commands[self.obs_number % self.command_lag] = road_option
-            road_option = self.commands[(self.obs_number + 1) % self.command_lag]
+        # if self.evaluate:
+        #     self.commands[self.obs_number % self.command_lag] = road_option
+        #     road_option = self.commands[(self.obs_number + 1) % self.command_lag]
 
         if road_option == RoadOption.LANEFOLLOW or road_option == RoadOption.STRAIGHT:
             command = np.array([0.0, 1.0, 0.0])

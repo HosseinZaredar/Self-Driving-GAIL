@@ -80,7 +80,8 @@ class LocalPlanner(object):
         self._base_min_distance = 1.0
         self._follow_speed_limits = False
 
-        self.lead_step = 4
+        self.lead = 4
+        self.lag = 6
 
         # Overload parameters
         if opt_dict:
@@ -203,8 +204,24 @@ class LocalPlanner(object):
                 new_waypoint_queue.append(wp)
             self._waypoints_queue = new_waypoint_queue
 
-        for elem in current_plan:
-            self._waypoints_queue.append(elem)
+        for i in range(len(current_plan)):
+
+            # update high-level commands
+            command = current_plan[i][1]
+
+            # lead
+            if i + self.lead < len(current_plan):
+                lead_command = current_plan[i + self.lead][1]
+                if lead_command == RoadOption.LEFT or lead_command == RoadOption.RIGHT:
+                    command = lead_command
+
+            # lag
+            if i - self.lag >= 0:
+                lag_command = current_plan[i - self.lag][1]
+                if lag_command == RoadOption.LEFT or lag_command == RoadOption.RIGHT:
+                    command = lag_command
+
+            self._waypoints_queue.append((current_plan[i][0], command))
 
         self.num_waypoints = len(current_plan)
 
@@ -264,18 +281,7 @@ class LocalPlanner(object):
 
         num_points_done = self.num_waypoints - len(self._waypoints_queue)
 
-        # calculate high-level command
-        lead_step = self.lead_step
-        if len(self._waypoints_queue) > lead_step:
-            _, lead_command = self._waypoints_queue[lead_step]
-            if lead_command == RoadOption.LEFT or lead_command == RoadOption.RIGHT:
-                command = lead_command
-            else:
-                command = self.target_road_option
-        else:
-            command = self.target_road_option
-
-        return control, command, num_points_done
+        return control, self.target_road_option, num_points_done
 
     def get_incoming_waypoint_and_direction(self, steps=3):
         """
