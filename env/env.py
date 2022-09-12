@@ -1,8 +1,7 @@
-import random
-import re
-
 from env import routes
 
+import random
+import re
 import math
 import os
 import queue
@@ -26,7 +25,7 @@ class CarlaEnv:
         self.eval_image_h = eval_image_h
 
         # episode variables
-        self.max_episode_steps = 140 if not evaluate else 600
+        self.max_episode_steps = 150 if not evaluate else 200
         self.episode_number = -2
         self.obs_number = 0
         self.current_route = 0
@@ -91,11 +90,6 @@ class CarlaEnv:
 
             for j in reversed(range(len(route[i]) - 1)):
                 self.distances[i][j] += self.distances[i][j+1]
-
-        # lagging commands in evaluation mode
-        if evaluate:
-            self.command_lag = 1
-            self.commands = [RoadOption.LANEFOLLOW for _ in range(self.command_lag)]
 
         # recording directory
         if self.evaluate:
@@ -269,11 +263,6 @@ class CarlaEnv:
         # get high-level command from agent's global planner
         _, road_option, num_points_done = self.agent.run_step()
 
-        # lag in evaluation mode
-        # if self.evaluate:
-        #     self.commands[self.obs_number % self.command_lag] = road_option
-        #     road_option = self.commands[(self.obs_number + 1) % self.command_lag]
-
         if road_option == RoadOption.LANEFOLLOW or road_option == RoadOption.STRAIGHT:
             command = np.array([0.0, 1.0, 0.0])
         elif road_option == RoadOption.LEFT:
@@ -301,7 +290,7 @@ class CarlaEnv:
 
         # environment reward (in case of collision or lane invasion, -25)
         if self.invaded or self.early_terminate:
-            reward = -25
+            reward = -5
             self.invaded = False
         else:
             reward = 0
@@ -309,8 +298,6 @@ class CarlaEnv:
         # vehicle speed
         v = self.vehicle.get_velocity()
         speed = math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)
-
-        # print(self.obs_number, command)
 
         return obs, command, speed, reward, done, info
 

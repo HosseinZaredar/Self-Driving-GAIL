@@ -22,10 +22,11 @@ class Actor(nn.Module):
         self.branched = branched
         if branched:
             self.actor_mean = layer_init(nn.Linear(512 + 1, 3 * num_actions), std=0.01)
-            self.actor_logstd = nn.Parameter(torch.zeros(1, 3 * num_actions))
+            self.actor_logstd = nn.Parameter(
+                torch.tensor([[-3.2, -2.5, -3.2, -3.2, -2.5, -3.2, -3.2, -2.5, -3.2]]), requires_grad=False)
         else:
             self.actor_mean = layer_init(nn.Linear(512+3+1, num_actions), std=0.01)
-            self.actor_logstd = nn.Parameter(torch.zeros(1, num_actions))
+            self.actor_logstd = nn.Parameter(torch.tensor([[-3.2, -2.5, -3.2]]), requires_grad=False)
 
     def forward(self, cnn_out, command, speed):
         if self.branched:

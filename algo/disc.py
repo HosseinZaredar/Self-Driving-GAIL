@@ -30,7 +30,7 @@ class Discriminator(nn.Module):  # Discriminator Network
         else:
             self.disc = nn.Linear(512+3+1+num_actions, 1)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.optimizer = optim.AdamW(self.parameters(), lr=lr, weight_decay=0.1)
         self.to(self.device)
 
         checkpoint_dir = os.path.join(Path(__file__).parent.parent, 'checkpoints')

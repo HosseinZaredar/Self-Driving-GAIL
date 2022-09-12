@@ -109,15 +109,15 @@ train_dests = [
 
 test_spawns = [
 
-    # long routes
-    carla.Location(x=-7.7, y=150.0, z=0.5),
-
     # intersection 7
     carla.Location(x=-7.7, y=150.0, z=0.5),
     carla.Location(x=-3.2, y=222.0, z=0.5),
+    carla.Location(x=20.0, y=187.4, z=0.5),
+    carla.Location(x=20.0, y=187.4, z=0.5),
 
     # intersection 8
     carla.Location(x=76.8, y=302.4, z=0.5),
+    carla.Location(x=17.4, y=307.0, z=0.5),
     carla.Location(x=41.4, y=265.0, z=0.5),
     carla.Location(x=41.4, y=265.0, z=0.5),
 ]
@@ -125,22 +125,24 @@ test_spawns = [
 test_rotations = [
 
     carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
-
-    carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
     carla.Rotation(pitch=0.0, yaw=270.0, roll=0.0),
+    carla.Rotation(pitch=0.0, yaw=180.0, roll=0.0),
+    carla.Rotation(pitch=0.0, yaw=180.0, roll=0.0),
 
     carla.Rotation(pitch=0.0, yaw=180.0, roll=0.0),
+    carla.Rotation(pitch=0.0, yaw=0.0, roll=0.0),
     carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
     carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0),
 ]
 
 test_dests = [
 
-    carla.Location(x=100.0, y=307.0, z=0.0),
-
     carla.Location(x=20.0, y=191.9, z=0.0),
     carla.Location(x=20.0, y=191.9, z=0.0),
+    carla.Location(x=-3.2, y=150.0, z=0.0),
+    carla.Location(x=-7.7, y=222.0, z=0.0),
 
+    carla.Location(x=46.2, y=265.0, z=0.0),
     carla.Location(x=46.2, y=265.0, z=0.0),
     carla.Location(x=17.4, y=302.4, z=0.0),
     carla.Location(x=76.8, y=307.0, z=0.0),

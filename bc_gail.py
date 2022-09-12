@@ -15,8 +15,8 @@ from torch.utils.tensorboard import SummaryWriter
 # command-line arguments
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ppo-learning-rate', type=float, default=3e-4)
-    parser.add_argument('--disc-learning-rate', type=float, default=3e-4)
+    parser.add_argument('--ppo-learning-rate', type=float, default=1e-4)
+    parser.add_argument('--disc-learning-rate', type=float, default=1e-4)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--total_timesteps', type=int, default=150_000)
     parser.add_argument('--use-cuda', type=lambda x: strtobool(x), nargs='?', default=True, const=True)
@@ -37,9 +37,9 @@ def parse_args():
     parser.add_argument("--vf-coef", type=float, default=0.5, help="coefficient of the value function")
     parser.add_argument("--max-grad-norm", type=float, default=0.5, help="the maximum norm for the gradient clipping")
 
-    parser.add_argument("--num-disc-epochs", type=int, default=1)
+    parser.add_argument("--num-disc-epochs", type=int, default=2)
     parser.add_argument("--num-disc-minibatches", type=int, default=16)
-    parser.add_argument("--half-life", type=int, default=160)
+    parser.add_argument("--half-life", type=int, default=150)
     parser.add_argument("--wasserstein", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument("--grad-penalty", type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument("--branched", type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
@@ -134,7 +134,7 @@ if __name__ == '__main__':
         global_step = agent.rollout(global_step)
 
         # update discriminator
-        for _ in range(args.num_disc_epochs if global_step > 10_000 else 2):
+        for _ in range(args.num_disc_epochs):
             disc_real_loss, disc_fake_loss, disc_raw_loss, disc_loss = disc.learn(
                 args.num_steps // args.num_disc_minibatches,
                 expert_states, expert_commands, expert_speeds, expert_actions,

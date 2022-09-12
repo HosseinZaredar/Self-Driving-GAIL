@@ -16,7 +16,7 @@ import torch
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=3)
-    parser.add_argument('--agent-name', type=str, default='bc_gail')
+    parser.add_argument('--agent-name', type=str, default='bcgail_79k')
     parser.add_argument('--use-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument('--deterministic', type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
@@ -101,6 +101,8 @@ if __name__ == '__main__':
                 os.makedirs(saliency_dir)
             if not os.path.exists(os.path.join(saliency_dir, 'right')):
                 os.makedirs(os.path.join(saliency_dir, 'right'))
+            if not os.path.exists(os.path.join(saliency_dir, 'front')):
+                os.makedirs(os.path.join(saliency_dir, 'front'))
             if not os.path.exists(os.path.join(saliency_dir, 'left')):
                 os.makedirs(os.path.join(saliency_dir, 'left'))
 
@@ -121,6 +123,11 @@ if __name__ == '__main__':
                 slc, _ = torch.max(torch.abs(obs.grad[0:3]), dim=0)
                 slc = (slc - slc.min()) / (slc.max() - slc.min())
                 plt.imsave(os.path.join(saliency_dir, 'left', f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
+
+                # front camera
+                slc, _ = torch.max(torch.abs(obs.grad[3:6]), dim=0)
+                slc = (slc - slc.min()) / (slc.max() - slc.min())
+                plt.imsave(os.path.join(saliency_dir, 'front', f'obs_{step_number:03}.png'), slc, cmap=plt.cm.hot)
 
                 # right camera
                 slc, _ = torch.max(torch.abs(obs.grad[6:9]), dim=0)
