@@ -16,7 +16,7 @@ from carla_agents.navigation.global_route_planner import GlobalRoutePlanner
 
 class CarlaEnv:
     def __init__(self, world='Town02', fps=10, image_w=256, image_h=112,
-                 evaluate=False, on_test_set=False, eval_image_w=256, eval_image_h=144):
+                 evaluate=False, on_test_set=False, eval_image_w=720, eval_image_h=480):
 
         self.image_w = image_w
         self.image_h = image_h
@@ -25,7 +25,7 @@ class CarlaEnv:
         self.eval_image_h = eval_image_h
 
         # episode variables
-        self.max_episode_steps = 150 if not evaluate else 200
+        self.max_episode_steps = 150 if not evaluate else 250
         self.episode_number = -2
         self.obs_number = 0
         self.current_route = 0
@@ -234,7 +234,8 @@ class CarlaEnv:
     def step(self, action):
 
         # add noise to steer (used for testing robustness of agent)
-        # if random.random() < 0.5:
+        # action[1] = 0
+        # if random.random() < 0.25:
         #     action[1] += 0.2
 
         # clipping values
@@ -243,6 +244,9 @@ class CarlaEnv:
         brake = float(np.clip(action[2], 0, 1))
         if brake < 0.01:
             brake = 0
+
+        # if self.obs_number < 50:
+        #     throttle, steer, brake = 0, 0, 0
 
         # applying the action
         self.vehicle.apply_control(
@@ -298,6 +302,8 @@ class CarlaEnv:
         # vehicle speed
         v = self.vehicle.get_velocity()
         speed = math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)
+
+        # print(self.obs_number, command, road_dist)
 
         return obs, command, speed, reward, done, info
 

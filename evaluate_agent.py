@@ -16,7 +16,7 @@ import torch
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=3)
-    parser.add_argument('--agent-name', type=str, default='bcgail_79k')
+    parser.add_argument('--agent-name', type=str, default='bc_gail')
     parser.add_argument('--use-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument('--deterministic-cuda', type=lambda x: bool(strtobool(x)), nargs='?', default=False, const=True)
     parser.add_argument('--deterministic', type=lambda x: bool(strtobool(x)), nargs='?', default=True, const=True)
