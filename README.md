@@ -19,10 +19,20 @@ This is the final project for my BSc in Computer Engineering at Amirkabir Univer
     <img src="figures/town-2.jpg" width="300" alt="town-2">
 </div>
 
-## Results
+## Sample Results
+
+Long Route:
+<br>
+
+https://user-images.githubusercontent.com/36497794/229384560-59c0bf97-97eb-4109-93a2-4fef26303c4e.mp4
+
+Noisy Wheel:
+<br>
+
+https://user-images.githubusercontent.com/36497794/229385027-5c74754b-a69c-4f39-a32e-6077b3b5d2bd.mp4
 
 # How to Run
-A guide to setup the training environemnt and run the codes along with the trained models will be added soon...
+A guide to setup the training environment and run the codes along with the trained models will be added soon...
 
 # References
 
