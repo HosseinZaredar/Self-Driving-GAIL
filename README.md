@@ -2,15 +2,39 @@
 
 This is the final project for my BSc in Computer Engineering at Amirkabir University of Technology (AUT), September 2022.
 
-## Design
+# Design
 
+## Black Box
 <div align="center">
     <img src="figures/blackbox.png" width="500" alt="blackbox">
 </div>
 
-
+## System Architecture
 <div align="center">
     <img src="figures/system.png" width="600" alt="system">
+</div>
+
+## Camera Setup
+
+Left Camera             |  Front Camera        |  Right Camera
+:-------------------------:|:-------------------------:|:-------------------------:
+![Left Camera](figures/left-camera.png)  |  ![Front Camera](figures/front-camera.png) | ![Right Camera](figures/right-camera.png)
+
+## Network Architecure
+
+Agent Network:
+<br>
+
+<div align="center">
+    <img src="figures/actor-critic.png" width="600" alt="actor-critic">
+</div>
+
+<br>
+Discriminator Network:
+<br>
+
+<div align="center">
+    <img src="figures/disc.png" width="600" alt="disc">
 </div>
 
 ## Dataset
@@ -26,6 +50,7 @@ Long Route:
 
 https://user-images.githubusercontent.com/36497794/229384560-59c0bf97-97eb-4109-93a2-4fef26303c4e.mp4
 
+<br>
 Noisy Wheel:
 <br>
 
