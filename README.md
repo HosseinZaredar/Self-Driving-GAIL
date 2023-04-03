@@ -9,7 +9,7 @@ This is the final project for my BSc in Computer Engineering at Amirkabir Univer
 The system works in and end-to-end manner [[2]](#2). At each moment, the model takes as inputs the images of three RGB cameras, a high-level navigational command (that instructs the vehicle to "turn left", "turn right", or "go straight") [[3]](#3), and the current speed of the vehicle. Based on these inputs, the model directly produces three control signals, namely, Throttle, Steer, and Brake, which are used to drive the car.
 
 <div align="center">
-    <img src="figures/blackbox.png" width="500" alt="blackbox">
+    <img src="figures/blackbox.jpg" width="500" alt="blackbox">
 </div>
 
 ## Camera Setup
@@ -26,7 +26,7 @@ Left Camera             |  Front Camera        |  Right Camera
 The architecure is based on the Reinforcement Learning loop. The agent learns to drive from interactions with the environment and also, from the expert driving dataset. The Actor-Critic algorithm, PPO [[4]](#4), is used to implement the agent. 
 
 <div align="center">
-    <img src="figures/system.png" width="500" alt="system">
+    <img src="figures/system.jpg" width="500" alt="system">
 </div>
 
 Three learning signals are used to train the model:
@@ -41,7 +41,7 @@ Three learning signals are used to train the model:
 <br>
 
 <div align="center">
-    <img src="figures/actor-critic.png" width="700" alt="actor-critic">
+    <img src="figures/actor-critic.jpg" width="700" alt="actor-critic">
 </div>
 
 <br>
@@ -49,7 +49,7 @@ Three learning signals are used to train the model:
 **Discriminator Network**: This is similar to the Agent network, but takes the action as an input as well, and outputs the probability of the state-action pair belonging to the expert dataset.
 
 <div align="center">
-    <img src="figures/disc.png" width="700" alt="disc">
+    <img src="figures/disc.jpg" width="700" alt="disc">
 </div>
 
 ## Dataset
