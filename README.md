@@ -1,6 +1,6 @@
 # Self-Driving-GAIL
 
-In this project, an end-to-end autonomous driving system in implemented. A deep learning model is trained to imitate an expert driver's behavior using Generative Adversarial Imitation Learninig (GAIL) algorithm [[1]](#1). The project is developed with [PyTorch](https://pytorch.org/) and [CARLA Simulator](https://carla.org/).
+In this project, an end-to-end autonomous driving system is implemented. A deep learning model is trained to imitate an expert driver's behavior using Generative Adversarial Imitation Learninig (GAIL) algorithm [[1]](#1). The project is developed with [PyTorch](https://pytorch.org/) and [CARLA Simulator](https://carla.org/).
 
 This is the final project for my BSc in Computer Engineering at Amirkabir University of Technology (AUT), September 2022.
 
@@ -23,7 +23,7 @@ Left Camera             |  Front Camera        |  Right Camera
 
 ## System Architecture
 
-The architecure is based on the Reinforcement Learning loop. The agent learns to drive from interations with the environment and also, from the expert driving dataset. The Actor-Critic algorithm, PPO [[4]](#4), is used to implement the agent. 
+The architecure is based on the Reinforcement Learning loop. The agent learns to drive from interactions with the environment and also, from the expert driving dataset. The Actor-Critic algorithm, PPO [[4]](#4), is used to implement the agent. 
 
 <div align="center">
     <img src="figures/system.png" width="500" alt="system">
@@ -32,11 +32,11 @@ The architecure is based on the Reinforcement Learning loop. The agent learns to
 Three learning signals are used to train the model:
 - **Generative Adversarial Imitation Learning**: The model learns from the rewards predicted by a Discriminator that tries to distinguish bewteen expert driving behavior and that of the agent [[5]](#5).
 - **Behavioral Clonining**: The agent has direct access to the expert dataset and learns to imitate expert decisions through supervised learning [[6]](#6).
-- **Explicit Rewards**: In order to help the model avoid obstacles and keep the vehicle in its lane, a negative reward is produced whenever a lane invasion occures.
+- **Explicit Rewards**: In order to help the model avoid obstacles and keep the vehicle in its lane, a negative reward is produced whenever a lane invasion occurs.
 
 ## Network Architecure
 
-**Agent Network**: A shared network is used for the Actor and the Critic modules of the PPO agent. The model processes the camera images separately, and then fuses these sensory informations to get a unified state vector. Then, based on the given high-level command, one head of the model is chosen to generate the control signals and the state value.
+**Agent Network**: A shared network is used for the Actor and the Critic modules of the PPO agent. The model processes the camera images separately, and then fuses these sensory information to get a unified state vector. Then, based on the given high-level command, one head of the model is chosen to generate the control signals and the state value.
 
 <br>
 
@@ -83,7 +83,7 @@ https://user-images.githubusercontent.com/36497794/229385027-5c74754b-a69c-4f39-
 What's interesting is that the model has not seen this type of error in the expert dataset or in the training environment. But due to the inherent exploration present in the stochastic policy of PPO, and also, the explicit reward explained before, the model has learned by itself to handle such errors.
 
 ## How to Run
-A guide to setup the training environment and run the codes, along with the trained models will be added soon...
+A guide to set up the training environment and run the codes, along with the trained models will be added soon...
 
 ## Reference Papers
 - <a id="1">[1]</a> [Generative Adversarial Imitation Learning, NIPS (2016)](https://arxiv.org/abs/1606.03476)
