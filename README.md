@@ -11,7 +11,7 @@ This is the final project for my BSc in Computer Engineering at Amirkabir Univer
 
 ## System Architecture
 <div align="center">
-    <img src="figures/system.png" width="600" alt="system">
+    <img src="figures/system.png" width="500" alt="system">
 </div>
 
 ## Camera Setup
@@ -26,7 +26,7 @@ Agent Network:
 <br>
 
 <div align="center">
-    <img src="figures/actor-critic.png" width="600" alt="actor-critic">
+    <img src="figures/actor-critic.png" width="700" alt="actor-critic">
 </div>
 
 <br>
@@ -34,7 +34,7 @@ Discriminator Network:
 <br>
 
 <div align="center">
-    <img src="figures/disc.png" width="600" alt="disc">
+    <img src="figures/disc.png" width="700" alt="disc">
 </div>
 
 ## Dataset
@@ -59,10 +59,9 @@ https://user-images.githubusercontent.com/36497794/229385027-5c74754b-a69c-4f39-
 # How to Run
 A guide to setup the training environment and run the codes along with the trained models will be added soon...
 
-# References
-
-## Papers
-- [End-to-end Driving via Conditional Imitation Learning](https://arxiv.org/abs/1710.02410)
-- [Generative Adversarial Imitation Learning](https://arxiv.org/abs/1606.03476)
-- [Generative Adversarial Imitation Learning for End-to-End Autonomous Driving on Urban Environments](https://arxiv.org/abs/2110.08586)
-- [Proximal Policy Optimization Algorithms](https://arxiv.org/abs/1707.06347)
+# Reference Papers
+- [End-to-end Driving via Conditional Imitation Learning, ICRA (2018)](https://arxiv.org/abs/1710.02410)
+- [Generative Adversarial Imitation Learning, NIPS (2016)](https://arxiv.org/abs/1606.03476)
+- [Generative Adversarial Imitation Learning for End-to-End Autonomous Driving on Urban Environments, SSCI (2021)](https://arxiv.org/abs/2110.08586)
+- [Augmenting GAIL with BC for sample efficient imitation learning, PMLR (2021)](https://arxiv.org/abs/2001.07798)
+- [Proximal Policy Optimization Algorithms, arXiv (2017)](https://arxiv.org/abs/1707.06347)
