@@ -30,13 +30,13 @@ The architecure is based on the Reinforcement Learning loop. The agent learns to
 </div>
 
 Three learning signals are used to train the model:
-- **Generative Adversarial Imitaion Learning**: The model learns from the rewards predicted by a Discriminator that tries to distinguish bewteen expert driving behavior and that of the agent.
-- **Behavioral Clonining**: The agent has direct access to the expert dataset and learns to imitate expert decisions through supervised learning [[5]](#5).
+- **Generative Adversarial Imitation Learning**: The model learns from the rewards predicted by a Discriminator that tries to distinguish bewteen expert driving behavior and that of the agent [[5]](#5).
+- **Behavioral Clonining**: The agent has direct access to the expert dataset and learns to imitate expert decisions through supervised learning [[6]](#6).
 - **Explicit Rewards**: In order to help the model avoid obstacles and keep the vehicle in its lane, a negative reward is produced whenever a lane invasion occures.
 
 ## Network Architecure
 
-**Agent Network**: A shared network is used for Actor and Critic modules of the PPO agent. The model processes the camera images separately, and fuses then these sensory informations to get a unified state vector. Then, based on the given high-level command, one head of the model is chosen to generate the control signals and the state value.
+**Agent Network**: A shared network is used for the Actor and the Critic modules of the PPO agent. The model processes the camera images separately, and then fuses these sensory informations to get a unified state vector. Then, based on the given high-level command, one head of the model is chosen to generate the control signals and the state value.
 
 <br>
 
@@ -64,17 +64,18 @@ The training and testing is performed in Town 2 of CARLA simluator. The model is
 At each intersection, the expert data is gathered on two left turns and two right turns (in total, 24 turns). CARLA's open-source navigation agent and PID controller are used to generate the expert data automatically.
 
 <br>
+<br>
 For simplicity, it is assumed that there's no traffic on the roads and traffic lights are not taken into consideration.
 
 ## Sample Results
 
-**Long Route:** A simple route in Town 2 which includes turns the model has not seen during training. We can observe that the model has learned to follow high-level commands and drives safely.
+**Long Route:** A simple route which includes roads the model has not seen during training. We can observe that the model has learned to follow high-level commands and drives safely.
 
 https://user-images.githubusercontent.com/36497794/229384560-59c0bf97-97eb-4109-93a2-4fef26303c4e.mp4
 
 <br>
 
-**Noisy Steering Wheel:** In this experiment, the trained model is tested on a simulated vehicle whose steering wheel randomly turns right. As we can see, the system is able to react quickly and keep the vehicle in its lane. 
+**Noisy Steering Wheel:** In this experiment, the trained model is tested on a simulated vehicle whose steering wheel turns to right at random moments. As we can see, the system is able to react quickly and keep the vehicle in its lane. 
 
 https://user-images.githubusercontent.com/36497794/229385027-5c74754b-a69c-4f39-a32e-6077b3b5d2bd.mp4
 
@@ -89,5 +90,5 @@ A guide to setup the training environment and run the codes, along with the trai
 - <a id="2">[2]</a> [End to End Learning for Self-Driving Cars, arXiv (2017)](https://arxiv.org/abs/1604.07316)
 - <a id="3">[3]</a> [End-to-end Driving via Conditional Imitation Learning, ICRA (2018)](https://arxiv.org/abs/1710.02410)
 - <a id="4">[4]</a> [Proximal Policy Optimization Algorithms, arXiv (2017)](https://arxiv.org/abs/1707.06347)
-- <a id="5">[5]</a> [Augmenting GAIL with BC for sample efficient imitation learning, PMLR (2021)](https://arxiv.org/abs/2001.07798)
-- [Generative Adversarial Imitation Learning for End-to-End Autonomous Driving on Urban Environments, SSCI (2021)](https://arxiv.org/abs/2110.08586)
+- <a id="5">[5]</a> [Generative Adversarial Imitation Learning for End-to-End Autonomous Driving on Urban Environments, SSCI (2021)](https://arxiv.org/abs/2110.08586)
+- <a id="6">[6]</a> [Augmenting GAIL with BC for sample efficient imitation learning, PMLR (2021)](https://arxiv.org/abs/2001.07798)
