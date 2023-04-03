@@ -1,12 +1,12 @@
 # Self-Driving-GAIL
 
-In this project, an end-to-end driving system in implemented. A deep learning model is trained to imitate an expert driver's behavior using Generative Adversarial Imitation Learninig (GAIL) algorithm. The project is developed with [PyTorch](https://pytorch.org/) and [CARLA Simulator](https://carla.org/).
+In this project, an end-to-end autonomous driving system in implemented. A deep learning model is trained to imitate an expert driver's behavior using Generative Adversarial Imitation Learninig (GAIL) algorithm [[1]](#1). The project is developed with [PyTorch](https://pytorch.org/) and [CARLA Simulator](https://carla.org/).
 
 This is the final project for my BSc in Computer Engineering at Amirkabir University of Technology (AUT), September 2022.
 
 ## System's Inputs and Outputs
 
-The system works in and end-to-end manner. At each moment, the model takes as inputs the images of three RGB cameras, a high-level navigational command (that instructs the vehicle to "turn left", "turn right", or "go straight"), and the current speed of the vehicle. Based on these inputs, the model directly produces three control signals, namely, Throttle, Steer, and Brake, which are used to drive the car.
+The system works in and end-to-end manner [[2]](#2). At each moment, the model takes as inputs the images of three RGB cameras, a high-level navigational command (that instructs the vehicle to "turn left", "turn right", or "go straight") [[3]](#3), and the current speed of the vehicle. Based on these inputs, the model directly produces three control signals, namely, Throttle, Steer, and Brake, which are used to drive the car.
 
 <div align="center">
     <img src="figures/blackbox.png" width="500" alt="blackbox">
@@ -23,7 +23,7 @@ Left Camera             |  Front Camera        |  Right Camera
 
 ## System Architecture
 
-The architecure is based on the Reinforcement Learning loop. The agent learns to drive from interations with the environment and also, from the expert driving dataset. The Actor-Critic algorithm, PPO, is used to implement the agent. 
+The architecure is based on the Reinforcement Learning loop. The agent learns to drive from interations with the environment and also, from the expert driving dataset. The Actor-Critic algorithm, PPO [[4]](#4), is used to implement the agent. 
 
 <div align="center">
     <img src="figures/system.png" width="500" alt="system">
@@ -31,7 +31,7 @@ The architecure is based on the Reinforcement Learning loop. The agent learns to
 
 Three learning signals are used to train the model:
 - **Generative Adversarial Imitaion Learning**: The model learns from the rewards predicted by a Discriminator that tries to distinguish bewteen expert driving behavior and that of the agent.
-- **Behavioral Clonining**: The agent has direct access to the expert dataset and learns to imitate expert decisions through supervised learning.
+- **Behavioral Clonining**: The agent has direct access to the expert dataset and learns to imitate expert decisions through supervised learning [[5]](#5).
 - **Explicit Rewards**: In order to help the model avoid obstacles and keep the vehicle in its lane, a negative reward is produced whenever a lane invasion occures.
 
 ## Network Architecure
@@ -85,8 +85,9 @@ What's interesting is that the model has not seen this type of error in the expe
 A guide to setup the training environment and run the codes, along with the trained models will be added soon...
 
 ## Reference Papers
-- [End-to-end Driving via Conditional Imitation Learning, ICRA (2018)](https://arxiv.org/abs/1710.02410)
-- [Generative Adversarial Imitation Learning, NIPS (2016)](https://arxiv.org/abs/1606.03476)
+- <a id="1">[1]</a> [Generative Adversarial Imitation Learning, NIPS (2016)](https://arxiv.org/abs/1606.03476)
+- <a id="2">[2]</a> [End to End Learning for Self-Driving Cars, arXiv (2017)](https://arxiv.org/abs/1604.07316)
+- <a id="3">[3]</a> [End-to-end Driving via Conditional Imitation Learning, ICRA (2018)](https://arxiv.org/abs/1710.02410)
+- <a id="4">[4]</a> [Proximal Policy Optimization Algorithms, arXiv (2017)](https://arxiv.org/abs/1707.06347)
+- <a id="5">[5]</a> [Augmenting GAIL with BC for sample efficient imitation learning, PMLR (2021)](https://arxiv.org/abs/2001.07798)
 - [Generative Adversarial Imitation Learning for End-to-End Autonomous Driving on Urban Environments, SSCI (2021)](https://arxiv.org/abs/2110.08586)
-- [Augmenting GAIL with BC for sample efficient imitation learning, PMLR (2021)](https://arxiv.org/abs/2001.07798)
-- [Proximal Policy Optimization Algorithms, arXiv (2017)](https://arxiv.org/abs/1707.06347)
