@@ -45,16 +45,18 @@ Discriminator Network:
 
 ## Sample Results
 
-Long Route:
-<br>
+**Long Route:** A simple route in Town 2 which includes roads the model has not seen during training. We can observe that the model has learned to follow high-level commands and drives safely (the model has not been trained to take traffic lights into consideration).
 
 https://user-images.githubusercontent.com/36497794/229384560-59c0bf97-97eb-4109-93a2-4fef26303c4e.mp4
 
 <br>
-Noisy Wheel:
-<br>
+
+**Noisy Steering Wheel:** In this experiment, we test the trained model on a simulated vehicle whose steering wheel randomly turns right. As we can see, the system is able to react quickly and keep the vehicle in its lane. 
 
 https://user-images.githubusercontent.com/36497794/229385027-5c74754b-a69c-4f39-a32e-6077b3b5d2bd.mp4
+
+<br>
+What's interesting is that the model has not seen this type of error in the expert dataset or in the training environment, but due to the inherent exploration done in a stochastic policy during training, the model learns by itself to handle such errors.
 
 # How to Run
 A guide to setup the training environment and run the codes along with the trained models will be added soon...
