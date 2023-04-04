@@ -1,6 +1,6 @@
 # Self-Driving-GAIL
 
-In this project, an end-to-end autonomous driving system is implemented. A deep learning model is trained to imitate an expert driver's behavior using Generative Adversarial Imitation Learninig (GAIL) algorithm [[1]](#1). The project is developed with [PyTorch](https://pytorch.org/) and [CARLA Simulator](https://carla.org/).
+In this project, an end-to-end autonomous driving system is implemented. A deep learning model is trained to imitate an expert driver's behavior using Generative Adversarial Imitation Learning (GAIL) algorithm [[1]](#1). The project is developed with [PyTorch](https://pytorch.org/) and [CARLA Simulator](https://carla.org/).
 
 This is the final project for my BSc in Computer Engineering at Amirkabir University of Technology (AUT), September 2022.
 
